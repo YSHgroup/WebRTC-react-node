@@ -1,0 +1,11 @@
+{
+	"name": "webrtc-application",
+	"scripts": {
+    "start": "concurrently \"pnpm run dev --prefix client\" \"npm run start --prefix server\"",
+    "client": "pnpm run dev --prefix client",
+    "server": "nodemon server/app.js"
+  },
+	"devDependencies": {
+		"concurrently": "^8.2.2"
+	}
+}
