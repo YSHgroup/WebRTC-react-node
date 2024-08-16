@@ -1,11 +1,29 @@
-# React + TypeScript + Vite
+# WebRTC front-end with react + ts
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## How to create app?
+### Initialize React app with ts + tailwind css
+- Initialize app using the following CLI
+```sh
+npm create vite@latest my-react-app -- --template react-ts
+```
+- Add tailwind css using the following CLI
+```sh
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+```
+- Add tailwind config: [Reference](https://tailwindcss.com/docs/installation)
+
+### Install dependancies
+  |name|version|description|
+  |---|---|-|
+  |node|20 |dependencies are based on this version of node|
+  |Sass|1.77||
+  |||
+
 
 ## Expanding the ESLint configuration
 
