@@ -22,7 +22,21 @@ npx tailwindcss init -p
   |---|---|-|
   |node|20 |dependencies are based on this version of node|
   |Sass|1.77||
-  |||
+  |firebase||pnpm install firebase|
+
+### Install Google firebase
+- Install firebase using the following CLI to host the site with Firebase Hosting, need the Firebase CLI (a command line tool).
+Run the following npm command to install the CLI or update to the latest CLI version.
+```sh
+  npm install -g firebase-tools
+```
+- Firebase CLI
+```sh
+firebase login
+firebase init
+firebase deploy
+```
+
 
 
 ## Expanding the ESLint configuration
