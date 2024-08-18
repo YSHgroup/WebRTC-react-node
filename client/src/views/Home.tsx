@@ -1,34 +1,26 @@
 import React from 'react'
-import { useState } from 'react'
-import reactLogo from '../assets/react.svg'
-import viteLogo from '/vite.svg'
+import { useParallax } from 'react-scroll-parallax'
+import back from '/image/back-person.jpg'
+import styled from 'styled-components'
+
+  const UnderSection = styled('div')`
+    position: absolute;
+    top: 100vh
+  `
 
 const Home: React.FC = () => {
-  const [count, setCount] = useState(0)
+  const { ref: firstParallax } = useParallax<HTMLDivElement>({ speed: -100, scale: [2, 1] })
 
   return (
-    <>
-    <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <main className='home-container w-full'>
+        <div className='absolute z-10 top-5' ref={firstParallax}>
+          <h1 className='text-5xl font-bold text-white font-serif'>Chatting House</h1>
+        </div>
+
+        <UnderSection className='w-full'>
+          <img src={back} alt="" className='w-full max-w-full h-screen object-contain' />
+        </UnderSection>
+    </main>
   )
 }
 
