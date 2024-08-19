@@ -7,7 +7,7 @@
 }
 
 body {
-  @apply bg-gray-200 min-w-[100vw] min-h-screen;
+  @apply bg-sky-100 min-h-screen;
 }
 
 .home-container {
@@ -28,7 +28,7 @@ body {
   .card {
     @apply bg-white;
     border-radius: theme('borderRadius.lg');
-    padding: theme('spacing.5');
+    // padding: theme('spacing.5');
     box-shadow: theme('boxShadow.md');
     overflow: hidden;
   }

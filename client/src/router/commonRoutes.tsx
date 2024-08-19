@@ -8,6 +8,7 @@ export const commonRoutes: RouteObject[] = [
   {
     path: '/',
     element: <Layout />,
+    ErrorBoundary: ErrorPage,
     children: [
       {
         path: '/home',

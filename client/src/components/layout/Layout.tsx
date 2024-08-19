@@ -7,9 +7,9 @@ export default function Layout() {
   const hideAppBar = hideAppBarPaths.includes(location.pathname.split('/')[1])
 
   return (
-    <>
+    <div className='w-full'>
       {!hideAppBar && <AppBar />}
       <Outlet />
-    </>
+    </div>
   )
 }

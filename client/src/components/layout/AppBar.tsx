@@ -1,4 +1,5 @@
 // import React from 'react'
+import { Link } from 'react-router-dom'
 import styled from 'styled-components'
 
 const BtnGroup = styled('div')`
@@ -14,18 +15,20 @@ export default function AppBar() {
       </div>
 
       <BtnGroup className='pr-3 flex items-center gap-3'>
-        <button
-          className='bg-white rounded p-2 shadow-lg shadow-slate-600 text-xl font-serif font-medium text-blue-400 hover:text-sky-700'
+        <Link
+          to='/sign-in'
+          className='bg-white text-center rounded p-2 shadow-lg shadow-slate-600 text-xl font-serif font-medium text-blue-400 hover:text-sky-700'
           style={{ width: '150px' }}
         >
           Sign In
-        </button>
-        <button
-          className='bg-white rounded p-2 shadow-lg shadow-slate-600 text-xl font-serif font-medium text-blue-400 hover:text-sky-700'
+        </Link>
+        <Link
+          to='/sign-up'
+          className='bg-white text-center rounded p-2 shadow-lg shadow-slate-600 text-xl font-serif font-medium text-blue-400 hover:text-sky-700'
           style={{ width: '150px' }}
         >
           Sign Up
-        </button>
+        </Link>
       </BtnGroup>
     </header>
   )

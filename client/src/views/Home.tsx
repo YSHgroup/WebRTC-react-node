@@ -12,7 +12,7 @@ const Home: React.FC = () => {
   const { ref: firstParallax } = useParallax<HTMLDivElement>({ speed: -100, scale: [2, 1] })
 
   return (
-    <main className='home-container w-full'>
+    <main className='home-container'>
         <div className='absolute z-10 top-5' ref={firstParallax}>
           <h1 className='text-5xl font-bold text-white font-serif'>Chatting House</h1>
         </div>
