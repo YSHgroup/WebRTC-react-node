@@ -15,7 +15,8 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.1",
     "react-scroll-parallax": "^3.4.5",
-    "styled-components": "^6.1.12"
+    "styled-components": "^6.1.12",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
