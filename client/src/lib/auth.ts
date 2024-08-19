@@ -1,6 +1,7 @@
 import '@/config/firebase'
 import { auth, googleProvider, signInWithPopup } from '@/config/firebase'
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth'
+import { createUserWithEmailAndPassword, GoogleAuthProvider, sendEmailVerification, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { toast } from 'react-toastify'
 // import { redirect } from 'react-router-dom'
 import { z } from 'zod'
 
@@ -22,7 +23,7 @@ export interface ErrorState {
   message: string | null
 }
 
-export const signUp = async ({email, password}: {email: string, password: string}) => {
+export const signUpWithEmail = async ({email, password, name}: {email: string, password: string, name: string}) => {
   const validateEmail = emailSchema.safeParse(email)
   const validatePwd = pwdSchema.safeParse(password)
 
@@ -31,24 +32,35 @@ export const signUp = async ({email, password}: {email: string, password: string
         email: validateEmail.error?.format()._errors[0] ?? null,
         password: validatePwd.error?.issues[0].message ?? null
       },
-      message: 'Failed to sign up.'
+      message: null
     }
   }
 
-  createUserWithEmailAndPassword(auth, validateEmail.data, validatePwd.data)
-    .then(userCredential => {
-      const user = userCredential.user;
-      console.log(user, userCredential)
-    })
-    .catch((error) => {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, validateEmail.data, validatePwd.data)
+    const user = userCredential.user;
+    const userRef = await updateProfile(user, {
+        displayName: name
+      })
+
+    await sendEmailVerification(user)
+    // https://yshgroup-test-763b1.firebaseapp.com/__/auth/action?mode=verifyEmail&oobCode=auScD4j6PhPncUX8V9ARfDaoJJRq_xfWtmYuXO1h4JoAAAGRbFcqTg&apiKey=AIzaSyDol1vnLJh-EhB9kWj1V0JSCWqi6lzVWUc&lang=en
+    console.log(userRef, userCredential)
+    toast('Verification email sent to:' + user.email)
+    // redirect('/sing-in')
+
+  } catch (error) {
+    if(error instanceof Error && 'code' in error) {
       const errorCode = error.code;
       const errorMessage = error.message;
-      console.log(errorCode, errorMessage)
+      console.log(errorCode, '\nerror message: ', errorMessage)
+
       return {
         errors: null,
         message: `Failed to sign up: ${errorCode}`
       }
-    });
+    }
+  }
 }
 
 export const signInWithEmail = async ({email, password}: {email: string, password: string}) => {
@@ -60,15 +72,15 @@ export const signInWithEmail = async ({email, password}: {email: string, passwor
         email: validateEmail.error?.format()._errors[0] ?? null,
         password: validatePwd.error?.issues[0].message ?? null
       },
-      message: 'Failed to sign in.'
+      message: null
     }
   }
 
   try {
     const userCredential = await signInWithEmailAndPassword(auth, validateEmail.data, validatePwd.data)
-        const user = userCredential.user;
-        console.log(user, userCredential)
-        // redirect('/sing-in')
+    const user = userCredential.user;
+    console.log(user, userCredential)
+    // redirect('/home')
 
   } catch (error) {
     if(error instanceof Error && 'code' in error) {
