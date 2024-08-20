@@ -138,7 +138,7 @@ const Signup = () => {
             to='/sign-in'
             className='text-sm text-slate-600 hover:text-red-500 hover:underline'
           >
-            Don you have account now?
+            Do you have account now?
           </Link>
         </div>
       </section>

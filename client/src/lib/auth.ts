@@ -1,8 +1,8 @@
 import '@/config/firebase'
 import { auth, googleProvider, signInWithPopup } from '@/config/firebase'
-import { createUserWithEmailAndPassword, GoogleAuthProvider, sendEmailVerification, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { createUserWithEmailAndPassword, GoogleAuthProvider, sendEmailVerification, signInWithEmailAndPassword, updateProfile, signOut as firebaseSignout } from 'firebase/auth'
 import { toast } from 'react-toastify'
-// import { redirect } from 'react-router-dom'
+import { redirect } from 'react-router-dom'
 import { z } from 'zod'
 
 const emailSchema = z
@@ -47,7 +47,7 @@ export const signUpWithEmail = async ({email, password, name}: {email: string, p
     // https://yshgroup-test-763b1.firebaseapp.com/__/auth/action?mode=verifyEmail&oobCode=auScD4j6PhPncUX8V9ARfDaoJJRq_xfWtmYuXO1h4JoAAAGRbFcqTg&apiKey=AIzaSyDol1vnLJh-EhB9kWj1V0JSCWqi6lzVWUc&lang=en
     console.log(userRef, userCredential)
     toast('Verification email sent to:' + user.email)
-    // redirect('/sing-in')
+    redirect('/sing-in')
 
   } catch (error) {
     if(error instanceof Error && 'code' in error) {
@@ -80,7 +80,7 @@ export const signInWithEmail = async ({email, password}: {email: string, passwor
     const userCredential = await signInWithEmailAndPassword(auth, validateEmail.data, validatePwd.data)
     const user = userCredential.user;
     console.log(user, userCredential)
-    // redirect('/home')
+    redirect('/home')
 
   } catch (error) {
     if(error instanceof Error && 'code' in error) {
@@ -96,7 +96,7 @@ export const signInWithEmail = async ({email, password}: {email: string, passwor
   }
 }
 
-export const signinWithGoogle = async () => [
+export const signinWithGoogle = async () => {
   signInWithPopup(auth, googleProvider)
       .then((result) => {
         // This gives you a Google Access Token. You can use it to access the Google API.
@@ -106,6 +106,8 @@ export const signinWithGoogle = async () => [
         const user = result.user
 
         console.log('user: ', user, token)
+        redirect('/home')
+
         // IdP data available using getAdditionalUserInfo(result)
         // ...
       })
@@ -120,4 +122,15 @@ export const signinWithGoogle = async () => [
 
         console.log('error: ', errorCode, errorMessage, email, credential)
       })
-]
+    }
+
+export const singOut = () => {
+  firebaseSignout(auth)
+    .then(res => {
+      console.log('signouted: ', res)
+      redirect('/home')
+    })
+    .catch(err => {
+      console.log('signout error: ', err)
+    })
+}
