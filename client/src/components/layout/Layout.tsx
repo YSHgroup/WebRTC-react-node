@@ -10,10 +10,9 @@ export default function Layout() {
 
   useEffect(() => {
     if(location.pathname == '/') {
-      console.log(location.pathname, location.pathname == '/')
       navigate('/home')
     }
-  }, [])
+  }, [navigate, location.pathname])
 
   return (
     <div className='w-full'>
