@@ -4,15 +4,20 @@ import { useEffect } from 'react'
 
 export default function Layout() {
   const location = useLocation()
-  const hideAppBarPaths = ['sign-in', 'sign-up']
-  const hideAppBar = hideAppBarPaths.includes(location.pathname.split('/')[1])
+  const authPages = ['sign-in', 'sign-up']
+  const hideAppBar = authPages.includes(location.pathname.split('/')[1])
   const navigate = useNavigate()
 
   useEffect(() => {
     if(location.pathname == '/') {
       navigate('/home')
     }
-  }, [navigate, location.pathname])
+
+    if(hideAppBar) {
+      navigate(-1)
+    }
+    
+  }, [navigate, location.pathname, hideAppBar])
 
   return (
     <div className='w-full'>
