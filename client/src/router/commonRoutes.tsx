@@ -28,4 +28,8 @@ export const commonRoutes: RouteObject[] = [
       },
     ],
   },
+  {
+    path: '*',
+    element: <p className='text-center text-2xl mt-12'><span className='text-red-500'>404</span> - Not found</p>
+  }
 ]
