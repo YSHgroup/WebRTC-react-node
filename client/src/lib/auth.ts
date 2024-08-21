@@ -108,7 +108,12 @@ export const signInWithEmail = async ({
       validatePwd.data
     )
     const user = userCredential.user
-    console.log(user, userCredential)
+    
+    if(!user.emailVerified) return {
+      errors: null,
+      message: `You have to verify the email. Please find your inbox.`,
+    }
+
     redirect('/home')
   } catch (error) {
     if (error instanceof Error && 'code' in error) {

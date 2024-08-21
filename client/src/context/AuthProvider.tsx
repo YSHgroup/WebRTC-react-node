@@ -10,7 +10,7 @@ const AuthProvider = ({children}: {children: ReactNode}) => {
   
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (resUser) => {
-      if(resUser) {
+      if(resUser && resUser.emailVerified) {
         setUser({currentUser: resUser});
       } else {
         setUser({ currentUser: null })
@@ -20,7 +20,7 @@ const AuthProvider = ({children}: {children: ReactNode}) => {
 
     return () => unsubscribe()
   }, [])
-
+  
   if(loading) {
     return <p className="mt-12 text-center text-2xl">Loading... </p>
   }
