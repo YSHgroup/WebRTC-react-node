@@ -10,14 +10,13 @@ const BtnGroup = styled('div')`
 `
 const RightEffect = styled('div')`
   padding-left: 1rem;
-  background-image: linear-gradient(-135deg, white 10%, transparent 70%);
 `
 
 export default function AppBar() {
   const { currentUser } = useContext(AuthContext)
   currentUser?.getIdToken()
   return (
-    <header className='fixed z-50 w-full flex justify-between'>
+    <header className='fixed z-50 w-full flex justify-between' style={currentUser? {backgroundColor: 'dodgerblue'}: {}}>
       <div className='ml-3 flex items-center text-3xl font-bold font-mono italic text-sky-200'>
         WebRTC
       </div>
