@@ -1,7 +1,19 @@
 import Message from '@/components/chat/Message'
 import MessageInput from '@/components/chat/MessageInput'
+import { AuthContext } from '@/context/AuthProvider'
+import { Message as MessageModel } from '@/models/message'
+import { subscribeToAllMessages } from '@/services/chatting'
+import { useContext, useEffect, useState } from 'react'
 
 const PublicChatting = () => {
+  const [messages, setMessages] = useState<MessageModel[]>()
+  const { currentUser } = useContext(AuthContext)
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAllMessages(setMessages)
+    return () => unsubscribe()
+  }, [])
+
   return (
     <>
       <div className='group m-0 pt-16'>
@@ -12,21 +24,28 @@ const PublicChatting = () => {
           <hr />
         </header>
 
-          <section className='p-4' aria-description='message box'>
-            <Message
-              direction='left'
-              message='Hi'
-              user='S'
-            ></Message>
+        <section
+          className='p-4'
+          aria-description='message box'
+        >
+          {messages?.map((message) => {
+            return (
               <Message
-              direction='right'
-              message='Hi, nice to meet you, so how are you doing now days?'
-              user='D'
-            ></Message>
-          </section>
+                key={message.id}
+                message={message.text}
+                user={
+                  message.sender_name
+                    ? message.sender_name.charAt(0).toUpperCase()
+                    : message.sender_email.charAt(0).toUpperCase()
+                }
+                direction={currentUser?.email === message.sender_email? 'right': 'left'}
+              />
+            )
+          })}
+        </section>
 
         <section className='fixed bottom-0 p-4 bg-white w-full'>
-          <MessageInput />
+          <MessageInput type='group' />
         </section>
       </div>
     </>
