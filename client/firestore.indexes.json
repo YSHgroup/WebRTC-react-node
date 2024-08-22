@@ -1,0 +1,23 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "receiver_email",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "sender_email",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

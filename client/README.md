@@ -34,6 +34,12 @@ Run the following npm command to install the CLI or update to the latest CLI ver
 ```sh
 firebase login
 firebase init
+
+```
+- Firebase Hosting
+
+Install Firebase CLI
+```sh
 firebase deploy
 ```
 
