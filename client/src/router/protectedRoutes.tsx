@@ -1,7 +1,16 @@
 import PrivateRoute from '@/components/PivateRoute'
+import { confirmUser } from '@/services/chatting'
+import DmSelection from '@/views/chat/DmSelection'
 import Individual from '@/views/chat/Individual'
 import PublicChatting from '@/views/chat/Public'
-import { RouteObject } from 'react-router-dom'
+import { LoaderFunction, Params, RouteObject } from 'react-router-dom'
+
+const userLoader: LoaderFunction<{ params: Params<string> }> = async({params}: { params: Params<string> }) => {
+  const { email } = params
+  const user = await confirmUser(email!, null)
+  console.log(user)
+  return user
+}
 
 export const protectedRoute: RouteObject = {
   path: '/chatting',
@@ -9,6 +18,11 @@ export const protectedRoute: RouteObject = {
   children: [
     {
       path: 'individual',
+      element: <DmSelection />,
+    },
+    {
+      path: 'individual/:email',
+      loader: userLoader,
       element: <Individual />
     },
     {
