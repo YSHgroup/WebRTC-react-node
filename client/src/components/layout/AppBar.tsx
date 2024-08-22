@@ -18,7 +18,7 @@ export default function AppBar() {
   return (
     <header className='fixed z-50 w-full flex justify-between' style={currentUser? {backgroundColor: 'dodgerblue'}: {}}>
       <div className='ml-3 flex items-center text-3xl font-bold font-mono italic text-sky-200'>
-        WebRTC
+        Chatting
       </div>
 
       {!currentUser ? (
