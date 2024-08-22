@@ -1,7 +1,28 @@
 import Message from '@/components/chat/Message'
 import MessageInput from '@/components/chat/MessageInput'
+import { AuthContext } from '@/context/AuthProvider'
+import type { Message as MessageModel } from '@/models/message'
+import { User } from '@/models/user'
+import { subscribeToSpecificMessages } from '@/services/chatting'
+import { useContext, useEffect, useState } from 'react'
+import { useLoaderData, useParams } from 'react-router-dom'
 
 const Individual = () => {
+  const { email } = useParams()
+  const [messages, setMessages] = useState<MessageModel[]>()
+  const { currentUser } = useContext(AuthContext)
+  const user = useLoaderData() as User
+
+  useEffect(() => {
+    if (email) {
+      const unSubscribe = subscribeToSpecificMessages(setMessages, {
+        sender: currentUser!.email as string,
+        receiver: email as string,
+      })
+      return () => unSubscribe()
+    }
+  }, [email, currentUser])
+
   return (
     <>
       <div className='individual m-0 pt-16'>
@@ -16,20 +37,26 @@ const Individual = () => {
           className='p-4'
           aria-description='message box'
         >
-          <Message
-            direction='left'
-            message='Hi'
-            user='S'
-          ></Message>
-          <Message
-            direction='right'
-            message='Hi, nice to meet you, so how are you doing now days?'
-            user='D'
-          ></Message>
+          {messages?.map((message) => {
+            return (
+              <Message
+                key={message.id}
+                message={message.text}
+                user={
+                  message.sender_name
+                    ? message.sender_name.charAt(0).toUpperCase()
+                    : message.sender_email.charAt(0).toUpperCase()
+                }
+                direction={
+                  currentUser?.email === message.sender_email ? 'right' : 'left'
+                }
+              />
+            )
+          })}
         </section>
 
         <section className='fixed bottom-0 p-4 bg-white w-full'>
-          <MessageInput type='personal' />
+          <MessageInput type='personal' receiverEmail={user.email} receiverName={user.name} />
         </section>
       </div>
     </>

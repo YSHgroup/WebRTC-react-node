@@ -1,6 +1,4 @@
 import { AuthContext } from '@/context/AuthProvider'
-// import type { Message as MessageModel } from '@/models/message'
-// import { subscribeToSpecificMessages } from '@/services/chatting'
 import { useContext, useEffect, useState } from 'react'
 
 import { confirmUser, fetchUsers } from '@/services/chatting'

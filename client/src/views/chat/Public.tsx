@@ -2,7 +2,7 @@ import Message from '@/components/chat/Message'
 import MessageInput from '@/components/chat/MessageInput'
 import { AuthContext } from '@/context/AuthProvider'
 import { Message as MessageModel } from '@/models/message'
-import { subscribeToAllMessages } from '@/services/chatting'
+import { confirmUser, subscribeToAllMessages } from '@/services/chatting'
 import { useContext, useEffect, useState } from 'react'
 
 const PublicChatting = () => {
@@ -10,6 +10,7 @@ const PublicChatting = () => {
   const { currentUser } = useContext(AuthContext)
 
   useEffect(() => {
+    confirmUser(currentUser!.email as string, currentUser!.displayName)
     const unsubscribe = subscribeToAllMessages(setMessages)
     return () => unsubscribe()
   }, [])
