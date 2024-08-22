@@ -1,8 +1,8 @@
 import { AuthContext } from '@/context/AuthProvider'
-import { sendPublicMessage } from '@/services/chatting'
+import { sendPrivateMessage, sendPublicMessage } from '@/services/chatting'
 import { KeyboardEventHandler, useContext, useState } from 'react'
 
-const MessageInput = ({type}: {type: 'group' | 'personal'}) => {
+const MessageInput = ({type, receiverEmail, receiverName}: {type: 'group' | 'personal', receiverEmail?: string, receiverName?: string}) => {
   const [text, setText] = useState<string>('')
   const { currentUser } = useContext(AuthContext)
 
@@ -13,6 +13,14 @@ const MessageInput = ({type}: {type: 'group' | 'personal'}) => {
         text: text.trim(),
         sender_email: currentUser!.email as string,
         sender_name: currentUser!.displayName ?? '',
+      })
+    } else if(type == 'personal') {
+      sendPrivateMessage({
+        text: text.trim(),
+        sender_email: currentUser!.email as string,
+        sender_name: currentUser!.displayName ?? '',
+        receiver_email: receiverEmail!,
+        receiver_name: receiverName!
       })
     }
     setText('')
