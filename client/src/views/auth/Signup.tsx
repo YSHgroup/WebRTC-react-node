@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ErrorState, signUpWithEmail } from '@/lib/auth'
+import { ErrorState, signUpWithEmail } from '@/services/auth'
 
 const Signup = () => {
   const initialErrorState: ErrorState = {

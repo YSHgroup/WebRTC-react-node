@@ -2,7 +2,7 @@ import { FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import googleIcon from '/image/google_oauth_icon.png'
-import { ErrorState, signInWithEmail, signinWithGoogle } from '@/lib/auth'
+import { ErrorState, signInWithEmail, signinWithGoogle } from '@/services/auth'
 
 const SignIn = () => {
   const initialErrorState: ErrorState = {
