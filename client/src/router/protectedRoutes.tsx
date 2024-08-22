@@ -8,7 +8,6 @@ import { LoaderFunction, Params, RouteObject } from 'react-router-dom'
 const userLoader: LoaderFunction<{ params: Params<string> }> = async({params}: { params: Params<string> }) => {
   const { email } = params
   const user = await confirmUser(email!, null)
-  console.log(user)
   return user
 }
 
