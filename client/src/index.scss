@@ -32,4 +32,28 @@ body {
     box-shadow: theme('boxShadow.md');
     overflow: hidden;
   }
+  .floating-nav {
+    @apply fixed;
+    top: 64px;
+    left: 5px;
+    
+    ul {
+      @apply flex flex-col items-start;
+      display: flex;
+      overflow: hidden;
+      height: 0;
+      transition-property: all;
+      transition-duration: 0.3s;
+    }
+    .placeholder {
+      @apply block rounded text-center p-1 my-2 font-semibold;
+      background-color: dodgerblue;
+      color: white;
+    }
+    &:hover {
+      ul {
+        height: 200px;
+      }
+    }
+  }
 }
