@@ -17,34 +17,36 @@ const PublicChatting = () => {
 
   return (
     <>
-      <div className='group m-0'>
+      <div className='group m-0 h-full'>
         <header className='group__header '>
-          <h2 className='group__title text-center text-xl font-bold m-2'>
+          <h2 className='group__title text-center text-xl font-bold p-2'>
             Group Chat
           </h2>
           <hr />
         </header>
 
         <section
-          className='p-4'
+          className='message-box p-4'
           aria-description='message box'
         >
-          {messages?.map((message) => {
-            return (
-              <Message
-                key={message.id}
-                message={message.text}
-                user={
-                  message.sender_name
-                    ? message.sender_name.charAt(0).toUpperCase()
-                    : message.sender_email.charAt(0).toUpperCase()
-                }
-                direction={
-                  currentUser?.email === message.sender_email ? 'right' : 'left'
-                }
-              />
-            )
-          })}
+          <div>
+            {messages?.map((message) => {
+              return (
+                <Message
+                  key={message.id}
+                  message={message.text}
+                  user={
+                    message.sender_name
+                      ? message.sender_name.charAt(0).toUpperCase()
+                      : message.sender_email.charAt(0).toUpperCase()
+                  }
+                  direction={
+                    currentUser?.email === message.sender_email ? 'right' : 'left'
+                  }
+                />
+              )
+            })}
+          </div>
         </section>
 
         <section

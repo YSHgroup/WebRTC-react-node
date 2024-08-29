@@ -27,14 +27,14 @@ const Individual = () => {
     <>
       <div className='individual m-0'>
         <header className='individual__header '>
-          <h2 className='individual__title text-center text-xl font-bold m-2'>
+          <h2 className='individual__title text-center text-xl font-bold p-2'>
             Personal Chat
           </h2>
           <hr />
         </header>
 
         <section
-          className='p-4'
+          className='message-box p-4'
           aria-description='message box'
         >
           {messages?.map((message) => {

@@ -36,6 +36,11 @@ body {
     box-shadow: theme('boxShadow.md');
     overflow: hidden;
   }
+  .message-box {
+    max-height: calc(100% - 110px);
+    overflow-y: auto;
+
+  }
   .floating-nav {
     @apply fixed;
     top: 64px;
