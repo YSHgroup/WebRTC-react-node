@@ -10,6 +10,10 @@ body {
   @apply bg-sky-100 min-h-screen;
 }
 
+#root {
+  height: 100vh;
+}
+
 .home-container {
   background-image: url("/image/back.jpg");
   background-repeat: no-repeat;

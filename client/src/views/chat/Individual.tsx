@@ -25,7 +25,7 @@ const Individual = () => {
 
   return (
     <>
-      <div className='individual m-0 pt-16'>
+      <div className='individual m-0'>
         <header className='individual__header '>
           <h2 className='individual__title text-center text-xl font-bold m-2'>
             Personal Chat
@@ -55,8 +55,15 @@ const Individual = () => {
           })}
         </section>
 
-        <section className='fixed bottom-0 p-4 bg-white w-full'>
-          <MessageInput type='personal' receiverEmail={user.email} receiverName={user.name} />
+        <section
+          className='fixed bottom-0 p-4 bg-white'
+          style={{ width: 'calc(100% - 280px)' }}
+        >
+          <MessageInput
+            type='personal'
+            receiverEmail={user.email}
+            receiverName={user.name}
+          />
         </section>
       </div>
     </>

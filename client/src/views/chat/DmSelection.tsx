@@ -15,7 +15,7 @@ const DmSelection = () => {
   }, [currentUser])
   return (
     <>
-      <div className='individual m-0 pt-16'>
+      <div className='individual m-0'>
         <header className='individual__header '>
           <h2 className='individual__title text-center text-xl font-bold m-2'>
             Personal Chat - users

@@ -6,7 +6,7 @@ import Layout from './layout/Layout'
 const PrivateRoute = () => {
   const { currentUser } = useContext(AuthContext)
 
-  return currentUser? <Layout/>: <Navigate to='/sign-in' replace />
+  return currentUser? <Layout nav/>: <Navigate to='/sign-in' replace />
 }
 
 export default PrivateRoute

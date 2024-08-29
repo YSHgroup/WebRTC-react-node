@@ -17,7 +17,7 @@ const PublicChatting = () => {
 
   return (
     <>
-      <div className='group m-0 pt-16'>
+      <div className='group m-0'>
         <header className='group__header '>
           <h2 className='group__title text-center text-xl font-bold m-2'>
             Group Chat
@@ -39,13 +39,18 @@ const PublicChatting = () => {
                     ? message.sender_name.charAt(0).toUpperCase()
                     : message.sender_email.charAt(0).toUpperCase()
                 }
-                direction={currentUser?.email === message.sender_email? 'right': 'left'}
+                direction={
+                  currentUser?.email === message.sender_email ? 'right' : 'left'
+                }
               />
             )
           })}
         </section>
 
-        <section className='fixed bottom-0 p-4 bg-white w-full'>
+        <section
+          className='fixed bottom-0 p-4 bg-white'
+          style={{ width: 'calc(100% - 280px)' }}
+        >
           <MessageInput type='group' />
         </section>
       </div>
