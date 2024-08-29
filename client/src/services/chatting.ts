@@ -55,7 +55,8 @@ export const confirmUser = async (email: string, name: string | null) => {
 }
 
 export const subscribeToAllMessages = (
-  setMessages: (messages: Message[]) => void
+  setMessages: (messages: Message[]) => void,
+  setSingal?: ((arg: boolean) => void)
 ) => {
   const q = query(messagesCollection, orderBy('createdAt'))
   return onSnapshot(q, (snapshot) => {
@@ -68,12 +69,19 @@ export const subscribeToAllMessages = (
       })
       .filter((message) => message.receiver_email == '@all')
     setMessages(messages)
+
+    
+    if(setSingal) {
+      setSingal(true)
+    }
+
   })
 }
 
 export const subscribeToSpecificMessages = (
   setMessages: (messages: Message[]) => void,
-  { sender, receiver }: { sender: string; receiver: string }
+  { sender, receiver }: { sender: string; receiver: string },
+  setSingal?: ((arg: boolean) => void)
 ) => {
   const q = query(
     messagesCollection,
@@ -90,6 +98,10 @@ export const subscribeToSpecificMessages = (
         ...doc.data(),
       } as Message
     })
+
+    if(messages[messages.length -1].sender_email === receiver && setSingal) {
+      setSingal(true)
+    }
 
     setMessages(messages)
   })

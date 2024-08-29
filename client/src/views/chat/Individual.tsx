@@ -1,6 +1,7 @@
 import Message from '@/components/chat/Message'
 import MessageInput from '@/components/chat/MessageInput'
 import { AuthContext } from '@/context/AuthProvider'
+import { SignalContext } from '@/context/SignalProvider'
 import type { Message as MessageModel } from '@/models/message'
 import { User } from '@/models/user'
 import { subscribeToSpecificMessages } from '@/services/chatting'
@@ -12,6 +13,7 @@ const Individual = () => {
   const privateBoxRef = useRef<HTMLDivElement | null>(null)
   const [messages, setMessages] = useState<MessageModel[]>()
   const { currentUser } = useContext(AuthContext)
+  const { setSignal } =useContext(SignalContext)
   const user = useLoaderData() as User
 
   useEffect(() => {
@@ -25,10 +27,10 @@ const Individual = () => {
       const unSubscribe = subscribeToSpecificMessages(setMessages, {
         sender: currentUser!.email as string,
         receiver: email as string,
-      })
+      }, setSignal)
       return () => unSubscribe()
     }
-  }, [email, currentUser])
+  }, [email, currentUser, setSignal])
 
   return (
     <>

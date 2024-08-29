@@ -1,6 +1,7 @@
 import Message from '@/components/chat/Message'
 import MessageInput from '@/components/chat/MessageInput'
 import { AuthContext } from '@/context/AuthProvider'
+import { SignalContext } from '@/context/SignalProvider'
 import { Message as MessageModel } from '@/models/message'
 import { confirmUser, subscribeToAllMessages } from '@/services/chatting'
 import { useContext, useEffect, useRef, useState } from 'react'
@@ -9,6 +10,7 @@ const PublicChatting = () => {
   const [messages, setMessages] = useState<MessageModel[]>()
   const publicBoxRef = useRef<HTMLDivElement | null>(null)
   const { currentUser } = useContext(AuthContext)
+  const { setSignal } =useContext(SignalContext)
 
   useEffect(() => {
     if(publicBoxRef.current) {
@@ -18,9 +20,9 @@ const PublicChatting = () => {
 
   useEffect(() => {
     confirmUser(currentUser!.email as string, currentUser!.displayName)
-    const unsubscribe = subscribeToAllMessages(setMessages)
+    const unsubscribe = subscribeToAllMessages(setMessages, setSignal)
     return () => unsubscribe()
-  }, [currentUser])
+  }, [currentUser, setSignal])
 
   return (
     <>

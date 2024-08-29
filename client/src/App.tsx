@@ -4,13 +4,16 @@ import { ToastContainer } from 'react-toastify'
 import { router } from './router'
 import 'react-toastify/dist/ReactToastify.css'
 import AuthProvider from './context/AuthProvider'
+import SignalProvider from './context/SignalProvider'
 function App() {
 
   return (
     <ParallaxProvider>
       <AuthProvider>
-        <RouterProvider router={router} />
-        <ToastContainer />
+        <SignalProvider>
+          <RouterProvider router={router} />
+          <ToastContainer />
+        </SignalProvider>
       </AuthProvider>
     </ParallaxProvider>
   )
