@@ -7,7 +7,7 @@ import SideBar from './Sidebar'
 import SignalLight from '../signal/SignalLight'
 import { SignalContext } from '@/context/SignalProvider'
 
-export default function Layout({ nav }: { nav: undefined | boolean }) {
+export default function Layout({ nav }: { nav?: boolean }) {
   const location = useLocation()
   const authPages = ['sign-in', 'sign-up']
   const hideAppBar = authPages.includes(location.pathname.split('/')[1])
