@@ -4,14 +4,21 @@ import { AuthContext } from '@/context/AuthProvider'
 import type { Message as MessageModel } from '@/models/message'
 import { User } from '@/models/user'
 import { subscribeToSpecificMessages } from '@/services/chatting'
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { useLoaderData, useParams } from 'react-router-dom'
 
 const Individual = () => {
   const { email } = useParams()
+  const privateBoxRef = useRef<HTMLDivElement | null>(null)
   const [messages, setMessages] = useState<MessageModel[]>()
   const { currentUser } = useContext(AuthContext)
   const user = useLoaderData() as User
+
+  useEffect(() => {
+    if(privateBoxRef.current) {
+      privateBoxRef.current.lastElementChild?.scrollIntoView()
+    }
+  }, [privateBoxRef.current?.lastElementChild])
 
   useEffect(() => {
     if (email) {
@@ -37,22 +44,24 @@ const Individual = () => {
           className='message-box p-4'
           aria-description='message box'
         >
-          {messages?.map((message) => {
-            return (
-              <Message
-                key={message.id}
-                message={message.text}
-                user={
-                  message.sender_name
-                    ? message.sender_name.charAt(0).toUpperCase()
-                    : message.sender_email.charAt(0).toUpperCase()
-                }
-                direction={
-                  currentUser?.email === message.sender_email ? 'right' : 'left'
-                }
-              />
-            )
-          })}
+          <div ref={privateBoxRef}>
+            {messages?.map((message) => {
+              return (
+                <Message
+                  key={message.id}
+                  message={message.text}
+                  user={
+                    message.sender_name
+                      ? message.sender_name.charAt(0).toUpperCase()
+                      : message.sender_email.charAt(0).toUpperCase()
+                  }
+                  direction={
+                    currentUser?.email === message.sender_email ? 'right' : 'left'
+                  }
+                />
+              )
+            })}
+          </div>
         </section>
 
         <section

@@ -3,17 +3,24 @@ import MessageInput from '@/components/chat/MessageInput'
 import { AuthContext } from '@/context/AuthProvider'
 import { Message as MessageModel } from '@/models/message'
 import { confirmUser, subscribeToAllMessages } from '@/services/chatting'
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 
 const PublicChatting = () => {
   const [messages, setMessages] = useState<MessageModel[]>()
+  const publicBoxRef = useRef<HTMLDivElement | null>(null)
   const { currentUser } = useContext(AuthContext)
+
+  useEffect(() => {
+    if(publicBoxRef.current) {
+      publicBoxRef.current.lastElementChild?.scrollIntoView()
+    }
+  }, [publicBoxRef.current?.lastElementChild])
 
   useEffect(() => {
     confirmUser(currentUser!.email as string, currentUser!.displayName)
     const unsubscribe = subscribeToAllMessages(setMessages)
     return () => unsubscribe()
-  }, [])
+  }, [currentUser])
 
   return (
     <>
@@ -29,7 +36,7 @@ const PublicChatting = () => {
           className='message-box p-4'
           aria-description='message box'
         >
-          <div>
+          <div  ref={publicBoxRef}>
             {messages?.map((message) => {
               return (
                 <Message
