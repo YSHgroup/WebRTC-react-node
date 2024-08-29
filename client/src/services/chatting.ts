@@ -70,6 +70,7 @@ export const subscribeToAllMessages = (
       .filter((message) => message.receiver_email == '@all')
     setMessages(messages)
 
+    notifyMessage(messages[messages.length - 1].text, '/chatting/group')
     
     if(setSingal) {
       setSingal(true)
@@ -104,6 +105,8 @@ export const subscribeToSpecificMessages = (
     }
 
     setMessages(messages)
+
+    notifyMessage(messages[messages.length - 1].text, `/chatting/individual/${receiver}`)
   })
 }
 
@@ -135,5 +138,15 @@ export const sendPrivateMessage = async (
     })
   } catch (error) {
     console.error('Error sending message: ', error)
+  }
+}
+
+const notifyMessage = (msg: string, url: string) => {
+  if(!document.hasFocus()) {
+    const notification = new Notification(msg)
+    notification.onclick = (event) => {
+      event.preventDefault()
+      window.open(`${origin}${url}`)
+    }
   }
 }

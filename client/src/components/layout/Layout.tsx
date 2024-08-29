@@ -23,6 +23,11 @@ export default function Layout({ nav }: { nav: undefined | boolean }) {
     if (currentUser && hideAppBar) {
       navigate('/home')
     }
+
+    if(currentUser && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+    
   }, [navigate, location.pathname, hideAppBar, currentUser])
 
   return (
