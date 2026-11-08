@@ -28,11 +28,11 @@ const get = useCall.getState
 const iceServers: RTCIceServer[] = [
   { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
 ]
-if (process.env.NEXT_PUBLIC_TURN_URL) {
+if (process.env.TURN_URL) {
   iceServers.push({
-    urls: process.env.NEXT_PUBLIC_TURN_URL,
-    username: process.env.NEXT_PUBLIC_TURN_USERNAME,
-    credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
+    urls: process.env.TURN_URL,
+    username: process.env.TURN_USERNAME,
+    credential: process.env.TURN_CREDENTIAL,
   })
 }
 

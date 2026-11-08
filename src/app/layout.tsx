@@ -7,7 +7,7 @@ import './globals.css'
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta', display: 'swap' })
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+const SITE = process.env.SITE_URL ?? 'http://localhost:3000'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),

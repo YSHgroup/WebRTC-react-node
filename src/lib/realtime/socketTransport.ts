@@ -6,7 +6,7 @@ import type { SignalPayload, Transport } from './types'
 /** Socket.io transport. Needs a long-running Node host (see server/index.ts). */
 export function createSocketTransport(): Transport {
   let socket: Socket | null = null
-  const url = process.env.NEXT_PUBLIC_SOCKET_URL || undefined // undefined = same origin
+  const url = process.env.SOCKET_URL || undefined // undefined = same origin
 
   const need = () => {
     if (!socket) throw new Error('Realtime connection is not ready')

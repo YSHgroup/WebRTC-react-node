@@ -9,7 +9,7 @@ declare global {
   }
 }
 
-const KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+const KEY = process.env.RECAPTCHA_SITE_KEY
 let loading: Promise<void> | null = null
 
 function load() {
