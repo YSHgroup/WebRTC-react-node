@@ -13,11 +13,10 @@ export type SignalPayload =
 export type Unsub = () => void
 
 /**
- * Everything "live" goes through this interface so the UI doesn't care whether
- * Socket.io (long-running Node host) or the Firestore fallback (Vercel-friendly) is behind it.
+ * Realtime features use Firestore listeners so they run without a persistent server.
  */
 export interface Transport {
-  readonly mode: 'socket' | 'firestore'
+  readonly mode: 'firestore'
   start(user: User): Promise<void>
   stop(): void
   sendMessage(draft: MessageDraft): Promise<Message>

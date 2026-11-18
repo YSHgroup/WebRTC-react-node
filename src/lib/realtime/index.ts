@@ -1,14 +1,11 @@
 import { createFirestoreTransport } from './firestoreTransport'
-import { createSocketTransport } from './socketTransport'
 import type { Transport } from './types'
 
 let instance: Transport | null = null
 
-/** REALTIME=socket → Socket.io, anything else → Firestore (works on Vercel). */
+/** Firestore listeners provide realtime without requiring a persistent WebSocket server. */
 export function getTransport(): Transport {
-  if (!instance) {
-    instance = process.env.REALTIME === 'socket' ? createSocketTransport() : createFirestoreTransport()
-  }
+  if (!instance) instance = createFirestoreTransport()
   return instance
 }
 
