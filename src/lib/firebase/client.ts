@@ -11,6 +11,11 @@ const config = {
   appId: process.env.FIREBASE_APP_ID,
 }
 
+const missingConfig = Object.entries(config).filter(([, value]) => !value).map(([key]) => key)
+if (missingConfig.length) {
+  throw new Error(`Missing Firebase web configuration: ${missingConfig.join(', ')}. Set these values in Vercel and rebuild.`)
+}
+
 const isNew = getApps().length === 0
 export const app = isNew ? initializeApp(config) : getApp()
 export const auth = getAuth(app)

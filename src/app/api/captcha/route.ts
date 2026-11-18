@@ -2,10 +2,15 @@ import { NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
 
-/** Verifies a reCAPTCHA v3 token. Without RECAPTCHA_SECRET_KEY (local dev) it lets everything through. */
+/** Verifies reCAPTCHA v3 tokens; only local development may omit the secret. */
 export async function POST(req: Request) {
   const secret = process.env.RECAPTCHA_SECRET_KEY
-  if (!secret) return NextResponse.json({ ok: true, skipped: true })
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'reCAPTCHA is not configured on the server.' }, { status: 503 })
+    }
+    return NextResponse.json({ ok: true, skipped: true })
+  }
 
   const { token, action } = (await req.json().catch(() => ({}))) as { token?: string; action?: string }
   if (!token) return NextResponse.json({ ok: false }, { status: 400 })

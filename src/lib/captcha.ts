@@ -37,6 +37,9 @@ export async function getCaptchaToken(action: string): Promise<string> {
 
 /** Verifies the token on the server. Throws a readable error if the check fails. */
 export async function assertHuman(action: string) {
+  if (!KEY && process.env.NODE_ENV === 'production') {
+    throw new Error('reCAPTCHA is not configured. Contact the site administrator.')
+  }
   const token = await getCaptchaToken(action)
   const res = await fetch('/api/captcha', {
     method: 'POST',

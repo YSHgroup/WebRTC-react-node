@@ -5,6 +5,9 @@ import { adminAuth, adminDb, verifyRequest } from '@/lib/server/admin'
 export const runtime = 'nodejs'
 
 export async function POST(req: Request) {
+  if (process.env.NODE_ENV === 'production' && (process.env.OTP_SECRET?.length ?? 0) < 32) {
+    return NextResponse.json({ error: 'Email verification is not configured on the server.' }, { status: 503 })
+  }
   let decoded
   try { decoded = await verifyRequest(req) } catch { return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 }) }
 
