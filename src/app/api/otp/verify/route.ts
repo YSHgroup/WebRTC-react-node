@@ -9,7 +9,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Email verification is not configured on the server.' }, { status: 503 })
   }
   let decoded
-  try { decoded = await verifyRequest(req) } catch { return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 }) }
+  try {
+    decoded = await verifyRequest(req)
+  } catch (error) {
+    const message = (error as Error).message
+    if (message === 'invalid-token') {
+      return NextResponse.json({ error: 'Your sign-in session is invalid. Sign out and sign in again.' }, { status: 401 })
+    }
+    if (message.startsWith('Firebase Admin credentials are missing')) {
+      return NextResponse.json({ error: 'Firebase Admin is not configured on Vercel.' }, { status: 503 })
+    }
+    return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 })
+  }
 
   const { code } = (await req.json().catch(() => ({}))) as { code?: string }
   if (!code || !/^\d{6}$/.test(code)) return NextResponse.json({ error: 'Enter the 6-digit code.' }, { status: 400 })

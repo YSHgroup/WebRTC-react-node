@@ -41,7 +41,14 @@ export async function POST(req: Request) {
   let decoded
   try {
     decoded = await verifyRequest(req)
-  } catch {
+  } catch (error) {
+    const message = (error as Error).message
+    if (message === 'invalid-token') {
+      return NextResponse.json({ error: 'Your sign-in session is invalid. Sign out and sign in again.' }, { status: 401 })
+    }
+    if (message.startsWith('Firebase Admin credentials are missing')) {
+      return NextResponse.json({ error: 'Firebase Admin is not configured on Vercel.' }, { status: 503 })
+    }
     return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 })
   }
   if (!decoded.email) return NextResponse.json({ error: 'This account has no email address.' }, { status: 400 })

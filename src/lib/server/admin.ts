@@ -16,10 +16,18 @@ function app() {
 export const adminAuth = () => getAuth(app())
 export const adminDb = () => getFirestore(app())
 
-/** Reads "Authorization: Bearer <idToken>" and returns the verified token. */
+/** Reads a Bearer Authorization header and returns the verified Firebase token. */
 export async function verifyRequest(req: Request) {
   const header = req.headers.get('authorization') ?? ''
   const token = header.startsWith('Bearer ') ? header.slice(7) : ''
   if (!token) throw new Error('unauthenticated')
-  return adminAuth().verifyIdToken(token)
+  try {
+    return await adminAuth().verifyIdToken(token)
+  } catch (error) {
+    const code = (error as { code?: string })?.code
+    if (code?.includes('auth/invalid') || code?.includes('auth/argument-error')) {
+      throw new Error('invalid-token')
+    }
+    throw error
+  }
 }
