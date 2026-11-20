@@ -4,6 +4,7 @@ import {
   setDoc, updateDoc, where, writeBatch,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase/client'
+import { auth } from '@/lib/firebase/client'
 import {
   DEFAULT_GROUPS, dmId, type Conversation, type Message, type MessageDraft, type UserProfile,
 } from '@/lib/types'
@@ -16,19 +17,36 @@ export async function upsertProfile(user: User, extra: Partial<UserProfile> = {}
   if (snap.exists()) {
     // never overwrite what the person edited on their profile
     if (Object.keys(extra).length) await updateDoc(ref, extra)
-    return
+  } else {
+    const profile: UserProfile = {
+      uid: user.uid,
+      displayName: extra.displayName || user.displayName || user.email?.split('@')[0] || 'New user',
+      email: user.email ?? null,
+      phone: user.phoneNumber ?? null,
+      photoURL: user.photoURL ?? null,
+      bio: '',
+      createdAt: Date.now(),
+      ...extra,
+    }
+    await setDoc(ref, profile)
   }
-  const profile: UserProfile = {
-    uid: user.uid,
-    displayName: extra.displayName || user.displayName || user.email?.split('@')[0] || 'New user',
-    email: user.email ?? null,
-    phone: user.phoneNumber ?? null,
-    photoURL: user.photoURL ?? null,
-    bio: '',
-    createdAt: Date.now(),
-    ...extra,
+
+  try {
+    const token = await user.getIdToken()
+    await fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        displayName: extra.displayName || user.displayName || user.email?.split('@')[0] || 'New user',
+        email: user.email ?? null,
+        phone: extra.phone ?? user.phoneNumber ?? null,
+        photoURL: extra.photoURL ?? user.photoURL ?? null,
+        bio: extra.bio ?? '',
+      }),
+    })
+  } catch (error) {
+    console.error('Could not sync profile to PostgreSQL', error)
   }
-  await setDoc(ref, profile)
 }
 
 export const subscribeProfile = (uid: string, cb: (p: UserProfile | null) => void) =>
@@ -37,8 +55,20 @@ export const subscribeProfile = (uid: string, cb: (p: UserProfile | null) => voi
 export const subscribeUsers = (cb: (users: UserProfile[]) => void) =>
   onSnapshot(collection(db, 'users'), (s) => cb(s.docs.map((d) => d.data() as UserProfile)))
 
-export const updateProfile = (uid: string, patch: Partial<UserProfile>) =>
-  updateDoc(doc(db, 'users', uid), patch)
+export async function updateProfile(uid: string, patch: Partial<UserProfile>) {
+  await updateDoc(doc(db, 'users', uid), patch)
+  try {
+    const token = await auth.currentUser?.getIdToken()
+    if (!token) return
+    await fetch('/api/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(patch),
+    })
+  } catch (error) {
+    console.error('Could not sync profile update to PostgreSQL', error)
+  }
+}
 
 /* ---------------- conversations ---------------- */
 

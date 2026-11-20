@@ -42,3 +42,42 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: (error as Error).message || 'Could not update profile.' }, { status: 400 })
   }
 }
+
+export async function POST(req: Request) {
+  try {
+    const user = await verifyRequest(req)
+    const body = await req.json() as {
+      displayName?: string
+      email?: string | null
+      phone?: string | null
+      photoURL?: string | null
+      bio?: string
+    }
+    await sql`
+      INSERT INTO users (
+        uid, display_name, email, phone, photo_url, bio, online, joined_defaults, created_at
+      )
+      VALUES (
+        ${user.uid},
+        ${body.displayName?.trim() || user.email?.split('@')[0] || 'New user'},
+        ${body.email ?? user.email ?? null},
+        ${body.phone ?? null},
+        ${body.photoURL ?? null},
+        ${body.bio?.slice(0, 200) ?? ''},
+        true,
+        false,
+        ${Date.now()}
+      )
+      ON CONFLICT (uid) DO UPDATE SET
+        display_name = EXCLUDED.display_name,
+        email = COALESCE(EXCLUDED.email, users.email),
+        phone = COALESCE(EXCLUDED.phone, users.phone),
+        photo_url = COALESCE(EXCLUDED.photo_url, users.photo_url),
+        online = true,
+        last_seen = ${Date.now()}
+    `
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message || 'Could not sync profile.' }, { status: 400 })
+  }
+}
