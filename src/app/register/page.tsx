@@ -54,11 +54,7 @@ function RegisterForm() {
     setBusy(true)
     try {
       if (kind === 'phone') {
-        const phone = parsePhone(identifier, country)
-        if (!phone) throw new Error('Enter a valid phone number.')
-        setConfirmation(await sendPhoneCode(phone.e164))
-        setPhoneShown(phone.pretty)
-        setStep('phone-code')
+        throw new Error('Phone SMS signup requires Firebase Blaze billing. Use email instead.')
       } else if (kind === 'email') {
         await assertHuman('register')
         const created = await registerWithEmail(name.trim(), identifier.trim(), password)
@@ -119,7 +115,7 @@ function RegisterForm() {
         {kind !== 'phone' ? (
           <PasswordField value={password} onChange={setPassword} autoComplete="new-password" />
         ) : (
-          <p className="text-xs text-mute">We’ll text you a one-time code. Phone accounts sign in with a code each time.</p>
+          <p className="text-xs text-mute">Phone SMS signup requires Firebase Blaze billing. Use email to sign up on the free plan.</p>
         )}
         <FormError message={error} />
         <button className="btn-primary w-full" disabled={busy}>

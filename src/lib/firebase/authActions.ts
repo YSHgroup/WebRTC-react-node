@@ -29,12 +29,17 @@ const MESSAGES: Record<string, string> = {
   'auth/popup-blocked': 'Your browser blocked the Google pop-up. Allow pop-ups and retry.',
   'auth/network-request-failed': 'Network error. Check your connection.',
   'auth/quota-exceeded': 'SMS limit reached for today. Try email instead.',
+  'auth/billing-not-enabled': 'Phone SMS verification requires Firebase Blaze billing. Use email verification or enable billing.',
 }
 
 export function authError(e: unknown): string {
   const code = (e as { code?: string })?.code
+  const rawMessage = e instanceof Error ? e.message : ''
+  if (rawMessage.includes('BILLING_NOT_ENABLED')) {
+    return MESSAGES['auth/billing-not-enabled']
+  }
   if (code && MESSAGES[code]) return MESSAGES[code]
-  if (e instanceof Error && !code) return e.message
+  if (rawMessage && !code) return rawMessage
   return 'Something went wrong. Please try again.'
 }
 

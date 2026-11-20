@@ -14,7 +14,7 @@ Next.js 14 (App Router) · Tailwind · Firebase Auth + Firestore · WebRTC.
 1. `npm install`
 2. Firebase console → create project (free Spark plan)
    - Authentication → enable **Email/Password**, **Google**, and **Phone**; add your domain(s) under Authorized domains and allow the SMS regions you serve
-   - Real phone-verification SMS requires the Firebase **Blaze (pay-as-you-go)** plan. Spark can use configured fictional test numbers, but cannot send real verification SMS.
+   - Real phone-verification SMS requires the Firebase **Blaze (pay-as-you-go)** plan. Spark can use configured fictional test numbers, but cannot send real verification SMS. The app blocks real SMS until billing is enabled and provides clear instructions.
    - Firestore → create database, then publish `firestore.rules` (`firebase deploy --only firestore:rules` or paste in console)
    - Project settings → add a Web app → set its config as `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIREBASE_MESSAGING_SENDER_ID`, and `FIREBASE_APP_ID`. Create a service-account key and set `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY` on the server. Use the same Firebase project ID for the web app and service account.
 3. Configure reCAPTCHA v3 at https://www.google.com/recaptcha/admin. Add the local and production hostnames, then set `RECAPTCHA_SITE_KEY` and `RECAPTCHA_SECRET_KEY`.

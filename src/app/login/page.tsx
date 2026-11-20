@@ -35,10 +35,7 @@ export default function LoginPage() {
     setError(null); setBusy(true)
     try {
       if (kind === 'phone') {
-        const phone = parsePhone(identifier, country)
-        if (!phone) throw new Error('Enter a valid phone number.')
-        setConfirmation(await sendPhoneCode(phone.e164))
-        setPhoneShown(phone.pretty)
+        throw new Error('Phone SMS sign-in requires Firebase Blaze billing. Use email instead.')
       } else if (kind === 'email') {
         await assertHuman('login')
         const user = await loginWithEmail(identifier.trim(), password)
@@ -82,7 +79,7 @@ export default function LoginPage() {
       <form onSubmit={submit} className="space-y-3" noValidate={false}>
         <IdentifierField value={identifier} onChange={setIdentifier} country={country} onCountry={setCountry} />
         {kind !== 'phone' && <PasswordField value={password} onChange={setPassword} autoComplete="current-password" />}
-        {kind === 'phone' && <p className="text-xs text-mute">We’ll text you a one-time code — no password needed.</p>}
+        {kind === 'phone' && <p className="text-xs text-mute">Phone SMS is unavailable until Firebase billing is enabled. Use email for signup and sign-in.</p>}
         {kind !== 'phone' && (
           <div className="flex justify-end text-sm">
             <button type="button" onClick={forgot} className="font-medium text-brand-600">Forgot password?</button>
