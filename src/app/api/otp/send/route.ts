@@ -16,7 +16,10 @@ async function sendEmail(to: string, code: string) {
   }
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify({
       from: process.env.MAIL_FROM ?? 'Huddle <onboarding@resend.dev>',
       to,
@@ -36,7 +39,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Email verification is not configured on the server.' }, { status: 503 })
   }
   let decoded
-  try { decoded = await verifyRequest(req) } catch { return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 }) }
+  try {
+    decoded = await verifyRequest(req)
+  } catch {
+    return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 })
+  }
   if (!decoded.email) return NextResponse.json({ error: 'This account has no email address.' }, { status: 400 })
 
   const ref = adminDb().collection('otps').doc(decoded.uid)

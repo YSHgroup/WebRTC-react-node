@@ -1,7 +1,14 @@
 import {
-  createUserWithEmailAndPassword, RecaptchaVerifier, sendPasswordResetEmail, signInWithEmailAndPassword,
-  signInWithPhoneNumber, signInWithPopup, signOut, updateProfile as updateAuthProfile,
-  type ConfirmationResult, type User,
+  createUserWithEmailAndPassword,
+  RecaptchaVerifier,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signInWithPhoneNumber,
+  signInWithPopup,
+  signOut,
+  updateProfile as updateAuthProfile,
+  type ConfirmationResult,
+  type User,
 } from 'firebase/auth'
 import { doc, setDoc } from 'firebase/firestore'
 import { upsertProfile } from '@/lib/chat/data'
@@ -31,8 +38,6 @@ export function authError(e: unknown): string {
   return 'Something went wrong. Please try again.'
 }
 
-/* ---------- email + password ---------- */
-
 export async function registerWithEmail(name: string, email: string, password: string) {
   const cred = await createUserWithEmailAndPassword(auth, email, password)
   await updateAuthProfile(cred.user, { displayName: name })
@@ -46,9 +51,13 @@ export const loginWithEmail = (email: string, password: string) =>
 export const resetPassword = (email: string) => sendPasswordResetEmail(auth, email)
 
 async function otpFetch(path: string, user: User, body?: unknown) {
+  const token = await user.getIdToken()
   const res = await fetch(path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await user.getIdToken()}` },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(body ?? {}),
   })
   const data = (await res.json().catch(() => ({}))) as { error?: string }
@@ -60,18 +69,14 @@ export const sendEmailCode = (user: User) => otpFetch('/api/otp/send', user)
 export async function verifyEmailCode(user: User, code: string) {
   await otpFetch('/api/otp/verify', user, { code })
   await user.reload()
-  await user.getIdToken(true) // pick up emailVerified in the token
+  await user.getIdToken(true)
 }
-
-/* ---------- Google ---------- */
 
 export async function loginWithGoogle() {
   const cred = await signInWithPopup(auth, googleProvider)
   await upsertProfile(cred.user)
   return cred.user
 }
-
-/* ---------- phone (Firebase Authentication, SMS) ---------- */
 
 let verifier: RecaptchaVerifier | null = null
 

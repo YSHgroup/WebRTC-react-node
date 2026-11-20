@@ -9,6 +9,7 @@ import { openDm } from '@/lib/chat/data'
 import { presenceLabel } from '@/lib/chat/helpers'
 import { useChat } from '@/store/chat'
 import { GlobalSearch } from './GlobalSearch'
+import { CreateGroupModal } from '@/components/chat/CreateGroupModal'
 
 export function SidebarLeft() {
   const router = useRouter()
@@ -17,6 +18,7 @@ export function SidebarLeft() {
   const conversations = useChat((s) => s.conversations)
   const presence = useChat((s) => s.presence)
   const [all, setAll] = useState(false)
+  const [creatingGroup, setCreatingGroup] = useState(false)
 
   const groups = useMemo(() => conversations.filter((c) => c.type === 'group').sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')), [conversations])
   const contacts = useMemo(
@@ -41,7 +43,9 @@ export function SidebarLeft() {
       <section aria-labelledby="groups-h">
         <div className="mb-2 flex items-center justify-between">
           <h2 id="groups-h" className="text-sm font-semibold">Groups</h2>
-          <span className="text-mute" aria-hidden><Plus size={16} /></span>
+          <button type="button" onClick={() => setCreatingGroup(true)} className="text-mute hover:text-brand-600" aria-label="Create group" title="Create group">
+            <Plus size={16} />
+          </button>
         </div>
         <ul className="space-y-0.5">
           {groups.map((g) => (
@@ -74,6 +78,7 @@ export function SidebarLeft() {
           </button>
         )}
       </section>
+      <CreateGroupModal open={creatingGroup} onClose={() => setCreatingGroup(false)} />
     </aside>
   )
 }

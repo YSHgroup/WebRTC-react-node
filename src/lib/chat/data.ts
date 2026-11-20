@@ -70,6 +70,23 @@ export async function openDm(me: string, other: string) {
   return id
 }
 
+export async function createGroup(uid: string, name: string, description: string, memberIds: string[] = []) {
+  const ref = doc(collection(db, 'conversations'))
+  const members = Array.from(new Set([uid, ...memberIds]))
+  await setDoc(ref, {
+    type: 'group',
+    name: name.trim(),
+    description: description.trim(),
+    color: '#7C5CFF',
+    icon: 'users',
+    isPublic: false,
+    members,
+    admins: [uid],
+    updatedAt: Date.now(),
+  })
+  return ref.id
+}
+
 export const subscribeConversations = (uid: string, cb: (c: Conversation[]) => void) =>
   onSnapshot(query(collection(db, 'conversations'), where('members', 'array-contains', uid)), (s) =>
     cb(s.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Conversation, 'id'>) }))),

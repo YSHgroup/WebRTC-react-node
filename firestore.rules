@@ -25,6 +25,14 @@ service cloud.firestore {
         (request.resource.data.type == 'group'
           && cid in ['development', 'hr', 'introduction', 'partners', 'topic-off']
           && request.resource.data.members == [request.auth.uid])
+        ||
+        // User-created private groups
+        (request.resource.data.type == 'group'
+          && request.resource.data.isPublic == false
+          && request.resource.data.members.size() >= 1
+          && request.auth.uid in request.resource.data.members
+          && request.resource.data.admins.size() == 1
+          && request.auth.uid in request.resource.data.admins)
       );
 
       allow update: if signedIn() && (
