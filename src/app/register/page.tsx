@@ -1,21 +1,20 @@
 'use client'
-import type { ConfirmationResult } from 'firebase/auth'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import type { CountryCode } from 'libphonenumber-js'
 import { AuthShell, Divider, FormError, GoogleMark } from '@/components/auth/AuthShell'
-import { CodeStep } from '@/components/auth/CodeStep'
 import { IdentifierField, NameField, PasswordField, kindOf } from '@/components/auth/IdentifierFields'
 import { assertHuman, preloadCaptcha } from '@/lib/captcha'
 import {
-  authError, confirmPhoneCode, loginWithGoogle, registerWithEmail, sendEmailCode, sendPhoneCode, verifyEmailCode,
+  authError, loginWithGoogle, refreshEmailVerification,
+  registerWithEmail, sendVerificationEmail,
 } from '@/lib/firebase/authActions'
-import { parsePhone } from '@/lib/phone'
 import { useAuth } from '@/store/auth'
 import { useRedirectIfReady } from '@/hooks/useRedirectIfReady'
 
-type Step = 'form' | 'email-code' | 'phone-code'
+type Step = 'form' | 'email-code'
 
 function RegisterForm() {
   const router = useRouter()
@@ -30,8 +29,6 @@ function RegisterForm() {
   const [country, setCountry] = useState<CountryCode>('US')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null)
-  const [phoneShown, setPhoneShown] = useState('')
   const autoSent = useRef(false)
 
   useEffect(() => { preloadCaptcha() }, [])
@@ -41,7 +38,7 @@ function RegisterForm() {
     if (params.get('verify') && status === 'unverified' && user && !autoSent.current) {
       autoSent.current = true
       setStep('email-code')
-      sendEmailCode(user).catch((e) => setError((e as Error).message))
+      sendVerificationEmail(user).catch((e) => setError(authError(e)))
     }
   }, [params, status, user])
 
@@ -60,8 +57,13 @@ function RegisterForm() {
         const created = await registerWithEmail(name.trim(), identifier.trim(), password)
         useAuth.getState().sync(created)
         autoSent.current = true
-        await sendEmailCode(created)
         setStep('email-code')
+        try {
+          await sendVerificationEmail(created)
+          toast.success('Firebase verification email sent.')
+        } catch (e) {
+          setError(authError(e))
+        }
       } else {
         throw new Error('Enter an email address or a phone number.')
       }
@@ -75,30 +77,56 @@ function RegisterForm() {
 
   if (step === 'email-code' && user) {
     return (
-      <AuthShell title="Verify your email" subtitle="Enter the code to finish creating your account">
-        <CodeStep
-          sentTo={user.email ?? 'your email'}
-          onBack={() => setStep('form')}
-          onResend={() => sendEmailCode(user)}
-          onSubmit={async (code) => {
-            await verifyEmailCode(user, code)
-            useAuth.getState().sync(user)
-            router.replace('/chat')
-          }}
-        />
-      </AuthShell>
-    )
-  }
-
-  if (step === 'phone-code' && confirmation) {
-    return (
-      <AuthShell title="Verify your phone" subtitle="Enter the code we texted you">
-        <CodeStep
-          sentTo={phoneShown}
-          onBack={() => setStep('form')}
-          onResend={async () => { const p = parsePhone(identifier, country); if (p) setConfirmation(await sendPhoneCode(p.e164)) }}
-          onSubmit={async (code) => { try { await confirmPhoneCode(confirmation, code, name.trim()) } catch (e) { throw new Error(authError(e)) } }}
-        />
+      <AuthShell title="Verify your email" subtitle="Check your inbox and confirm your email address">
+        <div className="space-y-3">
+          <p className="text-center text-sm text-mute">
+            Firebase sent a verification link to <span className="font-medium text-ink">{user.email}</span>.
+          </p>
+          <FormError message={error} />
+          <button
+            type="button"
+            className="btn-primary w-full"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true)
+              setError(null)
+              try {
+                const verified = await refreshEmailVerification(user)
+                useAuth.getState().sync(user)
+                if (verified) {
+                  toast.success('Email verified.')
+                  router.replace('/chat')
+                } else {
+                  setError('Email is not verified yet. Open the link in your inbox, then try again.')
+                }
+              } catch (e) {
+                setError(authError(e))
+              } finally {
+                setBusy(false)
+              }
+            }}
+          >
+            {busy ? 'Checking…' : 'I’ve verified my email'}
+          </button>
+          <button
+            type="button"
+            className="btn-ghost w-full"
+            onClick={async () => {
+              setError(null)
+              try {
+                await sendVerificationEmail(user)
+                toast.success('Verification email sent again.')
+              } catch (e) {
+                setError(authError(e))
+              }
+            }}
+          >
+            Resend verification email
+          </button>
+          <button type="button" className="w-full text-sm text-mute hover:text-ink" onClick={() => setStep('form')}>
+            Back
+          </button>
+        </div>
       </AuthShell>
     )
   }

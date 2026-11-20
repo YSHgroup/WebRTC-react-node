@@ -5,6 +5,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
   signInWithPopup,
+  sendEmailVerification,
   signOut,
   updateProfile as updateAuthProfile,
   type ConfirmationResult,
@@ -54,6 +55,16 @@ export const loginWithEmail = (email: string, password: string) =>
   signInWithEmailAndPassword(auth, email, password).then((c) => c.user)
 
 export const resetPassword = (email: string) => sendPasswordResetEmail(auth, email)
+
+export async function sendVerificationEmail(user: User) {
+  await sendEmailVerification(user)
+}
+
+export async function refreshEmailVerification(user: User) {
+  await user.reload()
+  await user.getIdToken(true)
+  return user.emailVerified
+}
 
 async function otpFetch(path: string, user: User, body?: unknown) {
   const token = await user.getIdToken()
