@@ -1,83 +1,58 @@
-import { NextResponse } from 'next/server'
-import { sql } from '@vercel/postgres'
-import { verifyRequest } from '@/lib/server/admin'
+import { parsePhoneNumberFromString } from 'libphonenumber-js'
+import { z } from 'zod'
+import { getSql, isUniqueViolation } from '@/lib/server/db'
+import { handler, HttpError, parseBody } from '@/lib/server/http'
+import { requireUser } from '@/lib/server/session'
+import { toMe } from '@/lib/server/users'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
-export async function GET(req: Request) {
-  try {
-    const user = await verifyRequest(req)
-    const result = await sql`
-      SELECT uid, display_name AS "displayName", email, phone, photo_url AS "photoURL",
-             bio, online, joined_defaults AS "joinedDefaults", last_seen AS "lastSeen", created_at AS "createdAt"
-      FROM users WHERE uid = ${user.uid}
-    `
-    return NextResponse.json({ profile: result.rows[0] ?? null })
-  } catch {
-    return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 })
+const Body = z.object({
+  displayName: z.string().trim().min(2, 'Enter your name.').max(80).optional(),
+  bio: z.string().trim().max(200).optional(),
+  phone: z.string().trim().max(32).nullable().optional(),
+  /** Square JPEG data URL produced in the browser (256 px). Pass null to remove. */
+  photoDataUrl: z.string().max(200_000).nullable().optional(),
+})
+
+export const GET = handler(async () => ({ user: await requireUser() }))
+
+export const PATCH = handler(async (req) => {
+  const me = await requireUser()
+  const body = await parseBody(req, Body)
+  const sql = getSql()
+
+  let phone: string | null | undefined
+  if (body.phone === null || body.phone === '') phone = null
+  else if (body.phone !== undefined) {
+    const p = parsePhoneNumberFromString(body.phone, 'US')
+    if (!p || !p.isValid()) throw new HttpError(400, 'Enter a valid phone number, including the country code (for example +44…).')
+    phone = p.number
   }
-}
+  if (phone === null && !me.email) throw new HttpError(400, 'Keep a phone number or an email so you can still sign in.')
 
-export async function PATCH(req: Request) {
+  let photo: string | null | undefined
+  if (body.photoDataUrl === null) photo = null
+  else if (body.photoDataUrl !== undefined) {
+    const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(body.photoDataUrl)
+    if (!m) throw new HttpError(400, 'Use a JPEG image for your photo.')
+    photo = m[1]
+  }
+
   try {
-    const user = await verifyRequest(req)
-    const patch = await req.json() as {
-      displayName?: string
-      phone?: string | null
-      bio?: string
-      photoURL?: string | null
-    }
-    const displayName = patch.displayName?.trim()
-    const bio = patch.bio?.slice(0, 200)
-    await sql`
+    const rows = await sql`
       UPDATE users SET
-        display_name = COALESCE(${displayName ?? null}, display_name),
-        phone = COALESCE(${patch.phone === undefined ? null : patch.phone}, phone),
-        bio = COALESCE(${bio ?? null}, bio),
-        photo_url = COALESCE(${patch.photoURL === undefined ? null : patch.photoURL}, photo_url)
-      WHERE uid = ${user.uid}
-    `
-    return NextResponse.json({ ok: true })
+        display_name = COALESCE(${body.displayName ?? null}, display_name),
+        bio = COALESCE(${body.bio ?? null}, bio),
+        phone = CASE WHEN ${phone !== undefined} THEN ${phone ?? null} ELSE phone END,
+        phone_verified = CASE WHEN ${phone !== undefined} THEN false ELSE phone_verified END,
+        photo_data = CASE WHEN ${photo !== undefined} THEN ${photo ?? null} ELSE photo_data END,
+        photo_version = CASE WHEN ${photo !== undefined} THEN photo_version + 1 ELSE photo_version END
+      WHERE id = ${me.uid} RETURNING *`
+    return { user: toMe(rows[0]) }
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message || 'Could not update profile.' }, { status: 400 })
+    if (isUniqueViolation(error)) throw new HttpError(409, 'That phone number is already used by another account.')
+    throw error
   }
-}
-
-export async function POST(req: Request) {
-  try {
-    const user = await verifyRequest(req)
-    const body = await req.json() as {
-      displayName?: string
-      email?: string | null
-      phone?: string | null
-      photoURL?: string | null
-      bio?: string
-    }
-    await sql`
-      INSERT INTO users (
-        uid, display_name, email, phone, photo_url, bio, online, joined_defaults, created_at
-      )
-      VALUES (
-        ${user.uid},
-        ${body.displayName?.trim() || user.email?.split('@')[0] || 'New user'},
-        ${body.email ?? user.email ?? null},
-        ${body.phone ?? null},
-        ${body.photoURL ?? null},
-        ${body.bio?.slice(0, 200) ?? ''},
-        true,
-        false,
-        ${Date.now()}
-      )
-      ON CONFLICT (uid) DO UPDATE SET
-        display_name = EXCLUDED.display_name,
-        email = COALESCE(EXCLUDED.email, users.email),
-        phone = COALESCE(EXCLUDED.phone, users.phone),
-        photo_url = COALESCE(EXCLUDED.photo_url, users.photo_url),
-        online = true,
-        last_seen = ${Date.now()}
-    `
-    return NextResponse.json({ ok: true })
-  } catch (error) {
-    return NextResponse.json({ error: (error as Error).message || 'Could not sync profile.' }, { status: 400 })
-  }
-}
+})
