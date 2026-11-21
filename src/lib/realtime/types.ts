@@ -1,5 +1,4 @@
-import type { User } from 'firebase/auth'
-import type { Message, MessageDraft } from '@/lib/types'
+import type { Message } from '@/lib/types'
 
 export type SignalPayload =
   | { type: 'invite'; callId: string; video: boolean }
@@ -10,20 +9,27 @@ export type SignalPayload =
   | { type: 'candidate'; callId: string; candidate: RTCIceCandidateInit }
   | { type: 'end'; callId: string }
 
+/** Events the server drops into a person's private inbox. */
+export type InboxEvent =
+  | { t: 'm'; cid: string; id: string; msg?: Message }
+  | { t: 'conv'; cid: string }
+
 export type Unsub = () => void
 
-/**
- * Realtime features use Firestore listeners so they run without a persistent server.
- */
+export interface PresenceInfo {
+  online: Record<string, boolean>
+  lastSeen: Record<string, number>
+}
+
 export interface Transport {
-  readonly mode: 'firestore'
-  start(user: User): Promise<void>
+  readonly uid: string
   stop(): void
-  sendMessage(draft: MessageDraft): Promise<Message>
-  subscribeMessages(cid: string, since: number, cb: (m: Message) => void): Unsub
+  serverNow(): number
+  onConnection(cb: (connected: boolean) => void): Unsub
+  onInbox(cb: (e: InboxEvent) => void): Unsub
+  onPresence(cb: (p: PresenceInfo) => void): Unsub
   sendTyping(cid: string, typing: boolean): void
   subscribeTyping(cid: string, cb: (uid: string, typing: boolean) => void): Unsub
-  onPresence(cb: (online: Record<string, boolean>) => void): Unsub
   sendSignal(to: string, payload: SignalPayload): Promise<void>
   onSignal(cb: (from: string, payload: SignalPayload) => void): Unsub
 }

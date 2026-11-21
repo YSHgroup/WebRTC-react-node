@@ -1,16 +1,26 @@
-import { createFirestoreTransport } from './firestoreTransport'
+import { connectRealtime } from './rtdb'
 import type { Transport } from './types'
 
-let instance: Transport | null = null
+let current: Transport | null = null
+let connecting: Promise<Transport> | null = null
 
-/** Firestore listeners provide realtime without requiring a persistent WebSocket server. */
-export function getTransport(): Transport {
-  if (!instance) instance = createFirestoreTransport()
-  return instance
+/** Opens (once) the realtime connection. Rejects when realtime is not configured; the app then falls back to polling. */
+export function startTransport(): Promise<Transport> {
+  if (current) return Promise.resolve(current)
+  if (!connecting) {
+    connecting = connectRealtime()
+      .then((t) => { current = t; return t })
+      .finally(() => { connecting = null })
+  }
+  return connecting
 }
 
-export function resetTransport() {
-  instance = null
+/** The live transport, or null when realtime is offline / not yet connected. */
+export const getTransport = (): Transport | null => current
+
+export function stopTransport() {
+  current?.stop()
+  current = null
 }
 
-export type { SignalPayload, Transport } from './types'
+export type { InboxEvent, PresenceInfo, SignalPayload, Transport } from './types'
