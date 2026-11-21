@@ -34,9 +34,9 @@ function MediaAndFiles({ messages }: { messages: Message[] }) {
         {images.length === 0 ? <p className="text-sm text-mute">Photos you share will appear here.</p> : (
           <div className="grid grid-cols-4 gap-1.5">
             {shownImages.map((m) => (
-              <a key={m.id} href={m.attachment!.dataUrl} target="_blank" rel="noopener noreferrer" className="block aspect-square overflow-hidden rounded-xl bg-sunken">
+              <a key={m.id} href={m.attachment!.url} target="_blank" rel="noopener noreferrer" className="block aspect-square overflow-hidden rounded-xl bg-sunken">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={m.attachment!.dataUrl} alt={m.attachment!.name} className="h-full w-full object-cover" loading="lazy" />
+                <img src={m.attachment!.url} alt={m.attachment!.name} className="h-full w-full object-cover" loading="lazy" />
               </a>
             ))}
           </div>
@@ -50,7 +50,7 @@ function MediaAndFiles({ messages }: { messages: Message[] }) {
               <li key={m.id} className="flex items-center gap-3">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-500"><FileText size={17} /></span>
                 <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{m.attachment!.name}</span><span className="block text-xs text-mute">{formatBytes(m.attachment!.size)}</span></span>
-                <a href={m.attachment!.dataUrl} download={m.attachment!.name} aria-label={`Download ${m.attachment!.name}`} className="rounded-lg p-2 text-mute hover:bg-sunken hover:text-brand-600"><Download size={16} /></a>
+                <a href={m.attachment!.url} download={m.attachment!.name} aria-label={`Download ${m.attachment!.name}`} className="rounded-lg p-2 text-mute hover:bg-sunken hover:text-brand-600"><Download size={16} /></a>
               </li>
             ))}
           </ul>

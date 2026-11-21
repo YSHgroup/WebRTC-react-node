@@ -1,43 +1,38 @@
-import type { Attachment } from './types'
+import type { PendingAttachment } from './types'
 
-export const MAX_FILE_BYTES = 700 * 1024 // Firestore documents are capped at 1 MiB
+export const MAX_FILE_BYTES = 3 * 1024 * 1024 // matches the server limit (Vercel request bodies max out at 4.5 MB)
 
-const readAsDataUrl = (file: Blob) =>
-  new Promise<string>((resolve, reject) => {
-    const r = new FileReader()
-    r.onload = () => resolve(r.result as string)
-    r.onerror = () => reject(r.error)
-    r.readAsDataURL(file)
-  })
+const canvasToBlob = (canvas: HTMLCanvasElement, quality: number) =>
+  new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not process that image.'))), 'image/jpeg', quality))
 
-/** Downscales an image to fit inside max×max and returns a JPEG data URL. */
-export async function compressImage(file: File, max = 1280, quality = 0.72): Promise<string> {
+/** Downscales a photo to fit inside max×max and re-encodes it as JPEG. */
+async function compressImage(file: File, max = 1600, quality = 0.78): Promise<Blob> {
   const bmp = await createImageBitmap(file)
   const scale = Math.min(1, max / Math.max(bmp.width, bmp.height))
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(bmp.width * scale)
   canvas.height = Math.round(bmp.height * scale)
   canvas.getContext('2d')!.drawImage(bmp, 0, 0, canvas.width, canvas.height)
-  return canvas.toDataURL('image/jpeg', quality)
+  return canvasToBlob(canvas, quality)
 }
 
-export async function fileToAttachment(file: File): Promise<Attachment> {
-  if (file.type.startsWith('image/') && file.type !== 'image/gif') {
-    let dataUrl = await compressImage(file)
-    if (dataUrl.length > MAX_FILE_BYTES * 1.37) dataUrl = await compressImage(file, 800, 0.6)
-    return { kind: 'image', name: file.name, size: file.size, mime: 'image/jpeg', dataUrl }
+export async function fileToPending(file: File): Promise<PendingAttachment> {
+  const compressible = file.type.startsWith('image/') && !['image/gif', 'image/svg+xml'].includes(file.type)
+  if (compressible) {
+    let blob = await compressImage(file)
+    if (blob.size > MAX_FILE_BYTES) blob = await compressImage(file, 1000, 0.6)
+    const name = file.name.replace(/\.[^.]+$/, '') + '.jpg'
+    return { file: blob, kind: 'image', name, size: blob.size, mime: 'image/jpeg', previewUrl: URL.createObjectURL(blob) }
   }
-  if (file.size > MAX_FILE_BYTES) {
-    throw new Error('Files are limited to 700 KB on the free plan (Firebase Storage needs a paid plan).')
-  }
+  if (file.size > MAX_FILE_BYTES) throw new Error('Files are limited to 3 MB on the free plan.')
+  const isImage = ['image/gif', 'image/png', 'image/jpeg', 'image/webp'].includes(file.type)
   return {
-    kind: file.type.startsWith('image/') ? 'image' : 'file',
-    name: file.name, size: file.size, mime: file.type || 'application/octet-stream',
-    dataUrl: await readAsDataUrl(file),
+    file, kind: isImage ? 'image' : 'file', name: file.name, size: file.size,
+    mime: file.type || 'application/octet-stream', previewUrl: isImage ? URL.createObjectURL(file) : null,
   }
 }
 
-/** Square avatar, 256px. */
+/** Square avatar, 256px, as a JPEG data URL (the server stores it and serves it as an image). */
 export async function avatarFromFile(file: File): Promise<string> {
   const bmp = await createImageBitmap(file)
   const side = Math.min(bmp.width, bmp.height)

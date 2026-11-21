@@ -4,12 +4,12 @@ import { toast } from 'sonner'
 import { Avatar } from '@/components/ui/Avatar'
 import { Modal } from '@/components/ui/Modal'
 import { useMe } from '@/hooks/useMe'
-import { getTransport } from '@/lib/realtime'
+import { sendMessage } from '@/lib/chat/data'
 import type { Message } from '@/lib/types'
 import { conversationMeta, useChat } from '@/store/chat'
 
 export function ForwardModal({ message, onClose }: { message: Message | null; onClose: () => void }) {
-  const { uid, name } = useMe()
+  const { uid } = useMe()
   const conversations = useChat((s) => s.conversations)
   const users = useChat((s) => s.users)
   const [q, setQ] = useState('')
@@ -27,12 +27,13 @@ export function ForwardModal({ message, onClose }: { message: Message | null; on
     if (!message) return
     setBusy(cid)
     try {
-      await getTransport().sendMessage({
-        cid, senderId: uid, senderName: name,
+      const sent = await sendMessage({
+        cid,
         text: message.text,
-        attachment: message.attachment,
+        attachmentId: message.attachment?.id,
         forwardedFrom: message.forwardedFrom ?? message.senderName,
       })
+      useChat.getState().receiveMessage(sent, uid)
       toast.success(`Forwarded to ${title}`)
       onClose()
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(null) }

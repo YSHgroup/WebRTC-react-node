@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Logo } from '@/components/ui/Logo'
-import { logout } from '@/lib/firebase/authActions'
+import { logout } from '@/lib/auth/actions'
 import { cn } from '@/lib/utils'
 import { useChat } from '@/store/chat'
 

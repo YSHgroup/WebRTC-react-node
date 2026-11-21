@@ -52,10 +52,10 @@ export function MessageBubble({ msg, mine, sender, showAvatar, showName, onReply
 
             {att?.kind === 'image' && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={att.dataUrl} alt={att.name} className="mb-1.5 max-h-72 w-full max-w-[320px] rounded-xl object-cover" loading="lazy" />
+              <img src={att.url} alt={att.name} className="mb-1.5 max-h-72 w-full max-w-[320px] rounded-xl object-cover" loading="lazy" />
             )}
             {att?.kind === 'file' && (
-              <a href={att.dataUrl} download={att.name} className={cn('mb-1.5 flex items-center gap-3 rounded-xl p-2.5', mine ? 'bg-white/15' : 'bg-panel')}>
+              <a href={att.url} download={att.name} className={cn('mb-1.5 flex items-center gap-3 rounded-xl p-2.5', mine ? 'bg-white/15' : 'bg-panel')}>
                 <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/10 text-red-500"><FileText size={20} /></span>
                 <span className="min-w-0 text-left"><span className="block truncate text-sm font-medium">{att.name}</span><span className="block text-xs opacity-70">{formatBytes(att.size)}</span></span>
                 <Download size={16} className="ml-1 shrink-0 opacity-70" />

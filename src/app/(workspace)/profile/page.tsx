@@ -6,20 +6,19 @@ import { Avatar } from '@/components/ui/Avatar'
 import { ThemeToggle } from '@/components/layout/Rail'
 import { useMe } from '@/hooks/useMe'
 import { updateProfile } from '@/lib/chat/data'
-import { logout } from '@/lib/firebase/authActions'
+import { logout } from '@/lib/auth/actions'
 import { avatarFromFile } from '@/lib/image'
 import { formatAsYouType, parsePhone } from '@/lib/phone'
 import { useAuth } from '@/store/auth'
 
 export default function ProfilePage() {
   const me = useMe()
-  const user = useAuth((s) => s.user)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [bio, setBio] = useState('')
   const [saving, setSaving] = useState(false)
   const file = useRef<HTMLInputElement>(null)
-  const phoneLocked = !!user?.phoneNumber // verified numbers can't be edited here
+  const phoneLocked = !!me.profile?.phoneVerified // verified numbers can't be edited here
 
   useEffect(() => {
     if (me.profile) { setName(me.profile.displayName); setPhone(me.profile.phone ?? ''); setBio(me.profile.bio ?? '') }
@@ -36,14 +35,18 @@ export default function ProfilePage() {
     } else if (!phoneLocked) phoneOut = null
     setSaving(true)
     try {
-      await updateProfile(me.uid, { displayName: name.trim(), bio: bio.trim().slice(0, 200), phone: phoneOut })
+      const user = await updateProfile({ displayName: name.trim(), bio: bio.trim().slice(0, 200), phone: phoneOut })
+      useAuth.getState().setUser(user)
       toast.success('Profile saved')
-    } catch { toast.error('Could not save your profile.') } finally { setSaving(false) }
+    } catch (err) { toast.error((err as Error).message || 'Could not save your profile.') } finally { setSaving(false) }
   }
 
   const changePhoto = async (f?: File | null) => {
     if (!f) return
-    try { await updateProfile(me.uid, { photoURL: await avatarFromFile(f) }); toast.success('Photo updated') } catch { toast.error('Could not use that image.') }
+    try {
+      useAuth.getState().setUser(await updateProfile({ photoDataUrl: await avatarFromFile(f) }))
+      toast.success('Photo updated')
+    } catch (err) { toast.error((err as Error).message || 'Could not use that image.') }
   }
 
   return (

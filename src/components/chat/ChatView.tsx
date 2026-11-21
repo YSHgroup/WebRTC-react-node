@@ -10,8 +10,8 @@ import { useConversation } from '@/hooks/useConversation'
 import { useMe } from '@/hooks/useMe'
 import { useMedia } from '@/hooks/useMedia'
 import { presenceLabel } from '@/lib/chat/helpers'
-import { getTransport } from '@/lib/realtime'
-import type { Attachment, Message } from '@/lib/types'
+import { sendMessage, uploadAttachment } from '@/lib/chat/data'
+import type { Message, PendingAttachment } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { startCall } from '@/lib/webrtc/callManager'
 import { conversationMeta, useChat } from '@/store/chat'
@@ -22,7 +22,7 @@ import { RightPanel } from './RightPanel'
 
 export function ChatView({ cid }: { cid: string }) {
   const router = useRouter()
-  const { uid, name } = useMe()
+  const { uid } = useMe()
   const ready = useChat((s) => s.ready)
   const conversation = useChat((s) => s.conversations.find((c) => c.id === cid))
   const users = useChat((s) => s.users)
@@ -56,13 +56,17 @@ export function ChatView({ cid }: { cid: string }) {
     ? 'typing…'
     : isGroup ? `${conversation.members.length} members` : presenceLabel(otherOnline, meta.other)
 
-  const send = async (text: string, attachment?: Attachment) => {
-    const msg = await getTransport().sendMessage({
-      cid, senderId: uid, senderName: name, text,
-      ...(attachment && { attachment }),
-      ...(replyTo && { replyTo: { id: replyTo.id, senderName: replyTo.senderName, text: (replyTo.text || replyTo.attachment?.name || 'Attachment').slice(0, 200) } }),
+  const send = async (text: string, pending?: PendingAttachment) => {
+    const uploaded = pending ? await uploadAttachment(pending) : undefined
+    const msg = await sendMessage({
+      cid,
+      text,
+      ...(uploaded && { attachmentId: uploaded.id }),
+      ...(replyTo && { replyToId: replyTo.id }),
     })
     useChat.getState().mergeMessages(cid, [msg])
+    useChat.getState().receiveMessage(msg, uid)
+    if (pending?.previewUrl) URL.revokeObjectURL(pending.previewUrl)
     setReplyTo(null)
   }
 
