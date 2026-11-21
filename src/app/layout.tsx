@@ -3,11 +3,10 @@ import { Plus_Jakarta_Sans } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { AuthListener } from '@/components/layout/AuthListener'
 import { ThemeScript } from '@/components/layout/ThemeScript'
+import { SITE_URL as SITE } from '@/lib/site'
 import './globals.css'
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta', display: 'swap' })
-
-const SITE = process.env.SITE_URL ?? 'http://localhost:3000'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
