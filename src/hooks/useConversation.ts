@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchMessages } from '@/lib/chat/data'
+import { fetchMessages, markRead } from '@/lib/chat/data'
 import { getTransport } from '@/lib/realtime'
 import type { Message } from '@/lib/types'
 import { useChat } from '@/store/chat'
@@ -8,9 +8,10 @@ import { useChat } from '@/store/chat'
 const PAGE = 40
 const EMPTY: Message[] = []
 
-/** Loads history, then keeps a conversation live through the active transport. */
+/** Loads history from the API, then listens for typing. New messages arrive through the global inbox (see useBoot). */
 export function useConversation(cid: string) {
   const ready = useChat((s) => s.ready)
+  const live = useChat((s) => s.live)
   const messages = useChat((s) => s.messages[cid]) ?? EMPTY
   const typingMap = useChat((s) => s.typing[cid])
   const [loading, setLoading] = useState(true)
@@ -24,34 +25,35 @@ export function useConversation(cid: string) {
     chat.setActive(cid)
     setLoading(true)
     let cancelled = false
-    let unsubMsgs: (() => void) | null = null
-    let unsubTyping: (() => void) | null = null
-    const transport = getTransport()
 
     fetchMessages(cid, PAGE)
       .then((msgs) => {
         if (cancelled) return
-        chat.mergeMessages(cid, msgs)
+        useChat.getState().mergeMessages(cid, msgs)
         setHasMore(msgs.length === PAGE)
-        const since = msgs.length ? msgs[msgs.length - 1].createdAt : Date.now() - 5000
-        unsubMsgs = transport.subscribeMessages(cid, since, (m) => useChat.getState().mergeMessages(cid, [m]))
-        unsubTyping = transport.subscribeTyping(cid, (uid, on) => {
-          useChat.getState().setTyping(cid, uid, on)
-          clearTimeout(timers.current[uid])
-          if (on) timers.current[uid] = setTimeout(() => useChat.getState().setTyping(cid, uid, false), 6000) // safety net
-        })
+        markRead(cid)
       })
       .catch(() => {})
       .finally(() => !cancelled && setLoading(false))
 
     return () => {
       cancelled = true
-      unsubMsgs?.()
-      unsubTyping?.()
       Object.values(timers.current).forEach(clearTimeout)
       useChat.getState().setActive(null)
     }
   }, [cid, ready])
+
+  // typing indicators only exist while realtime is connected
+  useEffect(() => {
+    const t = live ? getTransport() : null
+    if (!t) return
+    const off = t.subscribeTyping(cid, (uid, on) => {
+      useChat.getState().setTyping(cid, uid, on)
+      clearTimeout(timers.current[uid])
+      if (on) timers.current[uid] = setTimeout(() => useChat.getState().setTyping(cid, uid, false), 9000) // safety net
+    })
+    return off
+  }, [cid, live])
 
   const loadMore = useCallback(async () => {
     const first = useChat.getState().messages[cid]?.[0]
