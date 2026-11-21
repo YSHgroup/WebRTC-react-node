@@ -5,22 +5,20 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type { CountryCode } from 'libphonenumber-js'
 import { AuthShell, Divider, FormError, GoogleMark } from '@/components/auth/AuthShell'
+import { CodeStep } from '@/components/auth/CodeStep'
 import { IdentifierField, NameField, PasswordField, kindOf } from '@/components/auth/IdentifierFields'
-import { assertHuman, preloadCaptcha } from '@/lib/captcha'
-import {
-  authError, loginWithGoogle, refreshEmailVerification,
-  registerWithEmail, sendVerificationEmail,
-} from '@/lib/firebase/authActions'
-import { useAuth } from '@/store/auth'
+import { authError, registerAccount, sendEmailCode, verifyEmailCode, logout } from '@/lib/auth/actions'
+import { captchaToken, preloadCaptcha } from '@/lib/captcha'
 import { useRedirectIfReady } from '@/hooks/useRedirectIfReady'
+import { useAuth } from '@/store/auth'
 
-type Step = 'form' | 'email-code'
+type Step = 'form' | 'verify'
 
 function RegisterForm() {
   const router = useRouter()
   const params = useSearchParams()
   const status = useRedirectIfReady()
-  const user = useAuth((s) => s.user)
+  const me = useAuth((s) => s.me)
 
   const [step, setStep] = useState<Step>('form')
   const [name, setName] = useState('')
@@ -33,100 +31,45 @@ function RegisterForm() {
 
   useEffect(() => { preloadCaptcha() }, [])
 
-  // Arrived from /login with an account that still needs its email verified.
+  // Signed in but the email is not verified yet (sent here from login or the workspace).
   useEffect(() => {
-    if (params.get('verify') && status === 'unverified' && user && !autoSent.current) {
+    if (params.get('verify') && status === 'unverified' && me && !autoSent.current) {
       autoSent.current = true
-      setStep('email-code')
-      sendVerificationEmail(user).catch((e) => setError(authError(e)))
+      setStep('verify')
+      sendEmailCode().catch((e) => setError(authError(e)))
     }
-  }, [params, status, user])
+  }, [params, status, me])
 
   const kind = kindOf(identifier)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    if (name.trim().length < 2) return setError('Enter your full name.')
+    if (kind === 'unknown') return setError('Enter an email address or a phone number.')
     setBusy(true)
     try {
-      if (kind === 'phone') {
-        throw new Error('Phone SMS signup requires Firebase Blaze billing. Use email instead.')
-      } else if (kind === 'email') {
-        await assertHuman('register')
-        const created = await registerWithEmail(name.trim(), identifier.trim(), password)
-        useAuth.getState().sync(created)
-        autoSent.current = true
-        setStep('email-code')
-        try {
-          await sendVerificationEmail(created)
-          toast.success('Firebase verification email sent.')
-        } catch (e) {
-          setError(authError(e))
-        }
-      } else {
-        throw new Error('Enter an email address or a phone number.')
-      }
+      const user = await registerAccount({ name: name.trim(), identifier: identifier.trim(), country, password, captchaToken: await captchaToken('register') })
+      if (user.needsVerification) {
+        autoSent.current = true // the server already emailed the code
+        setStep('verify')
+      } else router.replace('/chat')
     } catch (err) { setError(authError(err)) } finally { setBusy(false) }
   }
 
-  const google = async () => {
-    setError(null); setBusy(true)
-    try { await loginWithGoogle() } catch (err) { setError(authError(err)) } finally { setBusy(false) }
-  }
-
-  if (step === 'email-code' && user) {
+  if (step === 'verify' && me) {
     return (
-      <AuthShell title="Verify your email" subtitle="Check your inbox and confirm your email address">
-        <div className="space-y-3">
-          <p className="text-center text-sm text-mute">
-            Firebase sent a verification link to <span className="font-medium text-ink">{user.email}</span>.
-          </p>
-          <FormError message={error} />
-          <button
-            type="button"
-            className="btn-primary w-full"
-            disabled={busy}
-            onClick={async () => {
-              setBusy(true)
-              setError(null)
-              try {
-                const verified = await refreshEmailVerification(user)
-                useAuth.getState().sync(user)
-                if (verified) {
-                  toast.success('Email verified.')
-                  router.replace('/chat')
-                } else {
-                  setError('Email is not verified yet. Open the link in your inbox, then try again.')
-                }
-              } catch (e) {
-                setError(authError(e))
-              } finally {
-                setBusy(false)
-              }
-            }}
-          >
-            {busy ? 'Checking…' : 'I’ve verified my email'}
-          </button>
-          <button
-            type="button"
-            className="btn-ghost w-full"
-            onClick={async () => {
-              setError(null)
-              try {
-                await sendVerificationEmail(user)
-                toast.success('Verification email sent again.')
-              } catch (e) {
-                setError(authError(e))
-              }
-            }}
-          >
-            Resend verification email
-          </button>
-          <button type="button" className="w-full text-sm text-mute hover:text-ink" onClick={() => setStep('form')}>
-            Back
-          </button>
-        </div>
+      <AuthShell title="Verify your email" subtitle="One more step to finish creating your account">
+        <CodeStep
+          sentTo={me.email ?? 'your email'}
+          onBack={() => { logout() }}
+          onResend={async () => { await sendEmailCode(); toast.success('A new code is on its way.') }}
+          onSubmit={async (code) => {
+            try { await verifyEmailCode(code) } catch (e) { throw new Error(authError(e)) }
+            toast.success('Email verified.')
+            router.replace('/chat')
+          }}
+        />
+        <FormError message={error} />
       </AuthShell>
     )
   }
@@ -140,22 +83,21 @@ function RegisterForm() {
       <form onSubmit={submit} className="space-y-3">
         <NameField value={name} onChange={setName} />
         <IdentifierField value={identifier} onChange={setIdentifier} country={country} onCountry={setCountry} />
-        {kind !== 'phone' ? (
-          <PasswordField value={password} onChange={setPassword} autoComplete="new-password" />
-        ) : (
-          <p className="text-xs text-mute">Phone SMS signup requires Firebase Blaze billing. Use email to sign up on the free plan.</p>
+        <PasswordField value={password} onChange={setPassword} autoComplete="new-password" />
+        {kind === 'phone' && (
+          <p className="text-xs text-mute">Phone numbers work as your sign-in name. SMS verification is not available on the free setup, so the number is saved unverified.</p>
         )}
         <FormError message={error} />
-        <button className="btn-primary w-full" disabled={busy}>
-          {busy ? 'Please wait…' : kind === 'phone' ? 'Send code' : 'Sign up'}
-        </button>
+        <button className="btn-primary w-full" disabled={busy}>{busy ? 'Please wait…' : 'Sign up'}</button>
       </form>
       <Divider />
-      <button onClick={google} disabled={busy} className="btn-ghost w-full"><GoogleMark /> Sign up with Google</button>
-      <p className="mt-5 text-center text-[11px] leading-snug text-mute">
-        Protected by reCAPTCHA. Google’s <a className="underline" href="https://policies.google.com/privacy" rel="noopener noreferrer">Privacy Policy</a> and{' '}
-        <a className="underline" href="https://policies.google.com/terms" rel="noopener noreferrer">Terms</a> apply.
-      </p>
+      <a href="/api/auth/google" className="btn-ghost w-full"><GoogleMark /> Sign up with Google</a>
+      {process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY && (
+        <p className="mt-5 text-center text-[11px] leading-snug text-mute">
+          Protected by reCAPTCHA. Google’s <a className="underline" href="https://policies.google.com/privacy" rel="noopener noreferrer">Privacy Policy</a> and{' '}
+          <a className="underline" href="https://policies.google.com/terms" rel="noopener noreferrer">Terms</a> apply.
+        </p>
+      )}
     </AuthShell>
   )
 }

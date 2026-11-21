@@ -6,7 +6,7 @@ const FEATURES = [
   { icon: MessageSquareText, title: 'Chat that keeps up', body: 'Private messages and team groups with formatting, emoji, replies and forwarding.' },
   { icon: Video, title: 'Video calls in one click', body: 'Peer-to-peer WebRTC calls straight from any conversation. Nothing to install.' },
   { icon: Code2, title: 'Groups for every team', body: 'Development, HR, Introduction, Partners and Topic-off are ready when you sign up.' },
-  { icon: Lock, title: 'Your sign-in, your way', body: 'Email with a verification code, phone via SMS, or Google. Protected by reCAPTCHA.' },
+  { icon: Lock, title: 'Your sign-in, your way', body: 'Sign in with email or phone and a password, or continue with Google. Your credentials stay in your own database.' },
 ]
 
 const jsonLd = {

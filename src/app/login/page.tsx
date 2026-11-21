@@ -1,73 +1,44 @@
 'use client'
-import type { ConfirmationResult } from 'firebase/auth'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
 import type { CountryCode } from 'libphonenumber-js'
-import { toast } from 'sonner'
 import { AuthShell, Divider, FormError, GoogleMark } from '@/components/auth/AuthShell'
-import { CodeStep } from '@/components/auth/CodeStep'
 import { IdentifierField, PasswordField, kindOf } from '@/components/auth/IdentifierFields'
-import { assertHuman, preloadCaptcha } from '@/lib/captcha'
-import {
-  authError, confirmPhoneCode, loginWithEmail, loginWithGoogle, resetPassword, sendPhoneCode,
-} from '@/lib/firebase/authActions'
-import { parsePhone } from '@/lib/phone'
-import { isVerified, useAuth } from '@/store/auth'
+import { authError, loginAccount } from '@/lib/auth/actions'
+import { captchaToken, preloadCaptcha } from '@/lib/captcha'
 import { useRedirectIfReady } from '@/hooks/useRedirectIfReady'
 
-export default function LoginPage() {
+const GOOGLE_ERRORS: Record<string, string> = {
+  google_not_configured: 'Google sign-in is not set up on this site yet.',
+  google_cancelled: 'Google sign-in was cancelled.',
+  google_state: 'The Google sign-in session expired. Please try again.',
+  google_unverified: 'Your Google account email is not verified.',
+  google_failed: 'Google sign-in failed. Please try again.',
+}
+
+function LoginForm() {
   const router = useRouter()
+  const params = useSearchParams()
   useRedirectIfReady()
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [country, setCountry] = useState<CountryCode>('US')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(GOOGLE_ERRORS[params.get('error') ?? ''] ?? null)
   const [busy, setBusy] = useState(false)
-  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null)
-  const [phoneShown, setPhoneShown] = useState('')
 
   useEffect(() => { preloadCaptcha() }, [])
   const kind = kindOf(identifier)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null); setBusy(true)
+    setError(null)
+    if (kind === 'unknown') return setError('Enter an email address or a phone number.')
+    setBusy(true)
     try {
-      if (kind === 'phone') {
-        throw new Error('Phone SMS sign-in requires Firebase Blaze billing. Use email instead.')
-      } else if (kind === 'email') {
-        await assertHuman('login')
-        const user = await loginWithEmail(identifier.trim(), password)
-        useAuth.getState().sync(user)
-        router.replace(isVerified(user) ? '/chat' : '/register?verify=1')
-      } else {
-        throw new Error('Enter an email address or a phone number.')
-      }
+      const user = await loginAccount({ identifier: identifier.trim(), country, password, captchaToken: await captchaToken('login') })
+      router.replace(user.needsVerification ? '/register?verify=1' : '/chat')
     } catch (err) { setError(authError(err)) } finally { setBusy(false) }
-  }
-
-  const google = async () => {
-    setError(null); setBusy(true)
-    try { await loginWithGoogle() } catch (err) { setError(authError(err)) } finally { setBusy(false) }
-  }
-
-  const forgot = async () => {
-    if (kind !== 'email') return setError('Enter your email above first, then choose "Forgot password".')
-    try { await resetPassword(identifier.trim()); toast.success('Password reset email sent.') } catch (err) { setError(authError(err)) }
-  }
-
-  if (confirmation) {
-    return (
-      <AuthShell title="Enter your code" subtitle="One more step to sign in">
-        <CodeStep
-          sentTo={phoneShown}
-          onBack={() => setConfirmation(null)}
-          onResend={async () => { const p = parsePhone(identifier, country); if (p) setConfirmation(await sendPhoneCode(p.e164)) }}
-          onSubmit={async (code) => { try { await confirmPhoneCode(confirmation, code) } catch (err) { throw new Error(authError(err)) } }}
-        />
-      </AuthShell>
-    )
   }
 
   return (
@@ -76,26 +47,27 @@ export default function LoginPage() {
       subtitle="Sign in to continue to your account"
       footer={<>Don’t have an account? <Link href="/register" className="font-semibold text-brand-600">Sign up</Link></>}
     >
-      <form onSubmit={submit} className="space-y-3" noValidate={false}>
+      <form onSubmit={submit} className="space-y-3">
         <IdentifierField value={identifier} onChange={setIdentifier} country={country} onCountry={setCountry} />
-        {kind !== 'phone' && <PasswordField value={password} onChange={setPassword} autoComplete="current-password" />}
-        {kind === 'phone' && <p className="text-xs text-mute">Phone SMS is unavailable until Firebase billing is enabled. Use email for signup and sign-in.</p>}
-        {kind !== 'phone' && (
-          <div className="flex justify-end text-sm">
-            <button type="button" onClick={forgot} className="font-medium text-brand-600">Forgot password?</button>
-          </div>
-        )}
+        <PasswordField value={password} onChange={setPassword} autoComplete="current-password" />
+        <div className="flex justify-end text-sm">
+          <Link href={`/forgot${kind === 'email' ? `?email=${encodeURIComponent(identifier.trim())}` : ''}`} className="font-medium text-brand-600">Forgot password?</Link>
+        </div>
         <FormError message={error} />
-        <button className="btn-primary w-full" disabled={busy}>
-          {busy ? 'Please wait…' : kind === 'phone' ? 'Send code' : 'Sign in'}
-        </button>
+        <button className="btn-primary w-full" disabled={busy}>{busy ? 'Please wait…' : 'Sign in'}</button>
       </form>
       <Divider />
-      <button onClick={google} disabled={busy} className="btn-ghost w-full"><GoogleMark /> Continue with Google</button>
-      <p className="mt-5 text-center text-[11px] leading-snug text-mute">
-        Protected by reCAPTCHA. Google’s <a className="underline" href="https://policies.google.com/privacy" rel="noopener noreferrer">Privacy Policy</a> and{' '}
-        <a className="underline" href="https://policies.google.com/terms" rel="noopener noreferrer">Terms</a> apply.
-      </p>
+      <a href="/api/auth/google" className="btn-ghost w-full"><GoogleMark /> Continue with Google</a>
+      {process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY && (
+        <p className="mt-5 text-center text-[11px] leading-snug text-mute">
+          Protected by reCAPTCHA. Google’s <a className="underline" href="https://policies.google.com/privacy" rel="noopener noreferrer">Privacy Policy</a> and{' '}
+          <a className="underline" href="https://policies.google.com/terms" rel="noopener noreferrer">Terms</a> apply.
+        </p>
+      )}
     </AuthShell>
   )
+}
+
+export default function LoginPage() {
+  return <Suspense><LoginForm /></Suspense>
 }

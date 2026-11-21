@@ -67,7 +67,7 @@ export function PasswordField({ value, onChange, autoComplete }: { value: string
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label="Password"
-        minLength={6}
+        minLength={8}
         required
       />
       <button type="button" onClick={() => setShow((s) => !s)} aria-label={show ? 'Hide password' : 'Show password'} className="absolute right-3 top-1/2 -translate-y-1/2 text-mute hover:text-ink">
