@@ -1,11 +1,17 @@
 'use client'
-import { onAuthStateChanged } from 'firebase/auth'
 import { useEffect } from 'react'
-import { auth } from '@/lib/firebase/client'
+import { api } from '@/lib/api'
+import type { Me } from '@/lib/types'
 import { useAuth } from '@/store/auth'
 
-/** Mirrors Firebase Auth into the store. Mounted once in the root layout. */
+/** Asks the server who is signed in. Mounted once in the root layout. */
 export function AuthListener() {
-  useEffect(() => onAuthStateChanged(auth, (u) => useAuth.getState().sync(u)), [])
+  useEffect(() => {
+    let cancelled = false
+    api<{ user: Me | null }>('/api/auth/me')
+      .then((r) => { if (!cancelled) useAuth.getState().setUser(r.user) })
+      .catch(() => { if (!cancelled) useAuth.getState().signedOut() })
+    return () => { cancelled = true }
+  }, [])
   return null
 }

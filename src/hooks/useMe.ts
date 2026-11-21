@@ -2,14 +2,13 @@
 import { useAuth } from '@/store/auth'
 
 export function useMe() {
-  const user = useAuth((s) => s.user)
-  const profile = useAuth((s) => s.profile)
+  const me = useAuth((s) => s.me)
   return {
-    uid: user?.uid ?? '',
-    name: profile?.displayName ?? user?.displayName ?? 'You',
-    email: profile?.email ?? user?.email ?? null,
-    phone: profile?.phone ?? user?.phoneNumber ?? null,
-    photo: profile?.photoURL ?? user?.photoURL ?? null,
-    profile,
+    uid: me?.uid ?? '',
+    name: me?.displayName ?? 'You',
+    email: me?.email ?? null,
+    phone: me?.phone ?? null,
+    photo: me?.photoURL ?? null,
+    profile: me,
   }
 }
