@@ -1,0 +1,44 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "inbox": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".indexOn": ["at"],
+        "$eventId": {
+          ".write": "auth != null && auth.uid === $uid && !newData.exists()"
+        }
+      }
+    },
+
+    "signals": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".indexOn": ["at"],
+        "$signalId": {
+          ".write": "auth != null && ((!data.exists() && newData.child('from').val() === auth.uid) || (auth.uid === $uid && !newData.exists()))",
+          ".validate": "newData.hasChildren(['from', 'at', 'payload']) && newData.child('payload').isString() && newData.child('payload').val().length < 20000"
+        }
+      }
+    },
+
+    "presence": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['online', 'at'])"
+      }
+    },
+
+    "typing": {
+      "$cid": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    }
+  }
+}
