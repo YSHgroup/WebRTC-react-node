@@ -1,58 +1,59 @@
-import { NextResponse } from 'next/server'
-import { sql } from '@vercel/postgres'
-import { verifyRequest } from '@/lib/server/admin'
+import { z } from 'zod'
+import { dmId, listConversations, memberIds } from '@/lib/server/conversations'
+import { getSql } from '@/lib/server/db'
+import { handler, HttpError, parseBody } from '@/lib/server/http'
+import { publish } from '@/lib/server/firebase'
+import { requireUser } from '@/lib/server/session'
+import { randomUUID } from 'node:crypto'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
-export async function GET(req: Request) {
-  try {
-    const user = await verifyRequest(req)
-    const result = await sql`
-      SELECT id, type, name, description, color, icon, is_public AS "isPublic",
-             members, admins, last_message AS "lastMessage", updated_at AS "updatedAt"
-      FROM conversations
-      WHERE ${user.uid} = ANY(members)
-      ORDER BY updated_at DESC
-    `
-    return NextResponse.json({ conversations: result.rows })
-  } catch {
-    return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 })
-  }
-}
+export const GET = handler(async () => {
+  const me = await requireUser()
+  return { conversations: await listConversations(me.uid) }
+})
 
-export async function POST(req: Request) {
-  try {
-    const user = await verifyRequest(req)
-    const body = await req.json() as {
-      type: 'dm' | 'group'
-      members?: string[]
-      name?: string
-      description?: string
-    }
-    if (body.type === 'dm') {
-      if (!body.members?.length) return NextResponse.json({ error: 'Choose a person.' }, { status: 400 })
-      const other = body.members[0]
-      const id = [user.uid, other].sort().join('_')
-      const dmMembers = `{${[user.uid, other].join(',')}}`
-      await sql`
-        INSERT INTO conversations (id, type, members, admins, updated_at)
-        VALUES (${id}, 'dm', ${dmMembers}::TEXT[], '{}'::TEXT[], ${Date.now()})
-        ON CONFLICT (id) DO UPDATE SET updated_at = EXCLUDED.updated_at
-      `
-      return NextResponse.json({ id })
-    }
-    if (!body.name?.trim()) return NextResponse.json({ error: 'Enter a group name.' }, { status: 400 })
-    const id = crypto.randomUUID()
-    const members = Array.from(new Set([user.uid, ...(body.members ?? [])]))
-    const memberArray = `{${members.join(',')}}`
-    const adminArray = `{${user.uid}}`
+const Body = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('dm'), userId: z.string().min(1) }),
+  z.object({
+    type: z.literal('group'),
+    name: z.string().trim().min(2, 'Enter a group name.').max(80),
+    description: z.string().trim().max(200).optional(),
+    memberIds: z.array(z.string()).max(200).optional(),
+  }),
+])
+
+export const POST = handler(async (req) => {
+  const me = await requireUser()
+  const body = await parseBody(req, Body)
+  const sql = getSql()
+  const now = Date.now()
+
+  if (body.type === 'dm') {
+    if (body.userId === me.uid) throw new HttpError(400, 'You cannot message yourself.')
+    const other = await sql`SELECT id FROM users WHERE id = ${body.userId}`
+    if (!other[0]) throw new HttpError(404, 'That person does not exist.')
+    const id = dmId(me.uid, body.userId)
+    await sql`INSERT INTO conversations (id, type, created_by, created_at, updated_at) VALUES (${id}, 'dm', ${me.uid}, ${now}::bigint, ${now}::bigint) ON CONFLICT (id) DO NOTHING`
     await sql`
-      INSERT INTO conversations (id, type, name, description, color, icon, is_public, members, admins, updated_at)
-      VALUES (${id}, 'group', ${body.name.trim()}, ${body.description?.trim() ?? ''}, '#7C5CFF', 'users', false,
-              ${memberArray}::TEXT[], ${adminArray}::TEXT[], ${Date.now()})
-    `
-    return NextResponse.json({ id })
-  } catch (error) {
-    return NextResponse.json({ error: (error as Error).message || 'Could not create conversation.' }, { status: 400 })
+      INSERT INTO conversation_members (cid, uid, role, joined_at, last_read_at)
+      VALUES (${id}, ${me.uid}, 'member', ${now}::bigint, ${now}::bigint), (${id}, ${body.userId}, 'member', ${now}::bigint, ${now}::bigint)
+      ON CONFLICT DO NOTHING`
+    return { id }
   }
-}
+
+  const ids = Array.from(new Set(body.memberIds ?? [])).filter((u) => u !== me.uid)
+  const valid = ids.length ? await sql`SELECT id FROM users WHERE id = ANY(${ids})` : []
+  const members = valid.map((r) => r.id as string)
+  const id = randomUUID()
+  await sql`
+    INSERT INTO conversations (id, type, name, description, color, icon, is_public, created_by, created_at, updated_at)
+    VALUES (${id}, 'group', ${body.name}, ${body.description ?? ''}, '#7C5CFF', 'users', false, ${me.uid}, ${now}::bigint, ${now}::bigint)`
+  await sql`
+    INSERT INTO conversation_members (cid, uid, role, joined_at, last_read_at)
+    SELECT ${id}, u, CASE WHEN u = ${me.uid} THEN 'admin' ELSE 'member' END, ${now}::bigint, ${now}::bigint
+    FROM unnest(${[me.uid, ...members]}::text[]) AS u`
+  await publish(await memberIds(id), { t: 'conv', cid: id })
+  return { id }
+})
