@@ -1,5 +1,7 @@
 import { create } from 'zustand'
+import { api } from '@/lib/api'
 import { getTransport, type SignalPayload } from '@/lib/realtime'
+import { useChat } from '@/store/chat'
 
 export type CallPhase = 'idle' | 'calling' | 'incoming' | 'connecting' | 'connected' | 'ended'
 
@@ -25,23 +27,33 @@ export const useCall = create<CallState>(() => idle)
 const set = useCall.setState
 const get = useCall.getState
 
-const iceServers: RTCIceServer[] = [
-  { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
-]
-if (process.env.TURN_URL) {
-  iceServers.push({
-    urls: process.env.TURN_URL,
-    username: process.env.TURN_USERNAME,
-    credential: process.env.TURN_CREDENTIAL,
-  })
+const FALLBACK_ICE: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }]
+let iceCache: { servers: RTCIceServer[]; at: number } | null = null
+
+/** STUN/TURN come from the server (TURN credentials never ship in the JavaScript bundle). Cached for 20 minutes. */
+async function loadIceServers(): Promise<RTCIceServer[]> {
+  if (iceCache && Date.now() - iceCache.at < 20 * 60_000) return iceCache.servers
+  try {
+    const r = await api<{ iceServers: RTCIceServer[] }>('/api/webrtc/ice')
+    iceCache = { servers: r.iceServers, at: Date.now() }
+    return r.iceServers
+  } catch {
+    return FALLBACK_ICE
+  }
 }
 
 let pc: RTCPeerConnection | null = null
 let pendingCandidates: RTCIceCandidateInit[] = []
 let ringTimeout: ReturnType<typeof setTimeout> | null = null
 let resetTimeout: ReturnType<typeof setTimeout> | null = null
+let dropTimeout: ReturnType<typeof setTimeout> | null = null
+let iceServers: RTCIceServer[] = FALLBACK_ICE
 
-const send = (to: string, payload: SignalPayload) => getTransport().sendSignal(to, payload).catch(() => {})
+const send = (to: string, payload: SignalPayload) => {
+  const t = getTransport()
+  if (!t) { console.warn('[call] realtime is not connected; signal dropped', payload.type); return Promise.resolve() }
+  return t.sendSignal(to, payload).catch((e) => console.warn('[call] signal failed', payload.type, e))
+}
 
 async function getMedia(video: boolean) {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error('Your browser does not support calls.')
@@ -67,19 +79,29 @@ function createPc(peerId: string, callId: string) {
     e.streams[0]?.getTracks().forEach((t) => { if (!remote.getTracks().includes(t)) remote.addTrack(t) })
     set({ remoteStream: new MediaStream(remote.getTracks()) }) // new ref → React re-renders
   }
-  conn.onconnectionstatechange = () => {
-    if (conn.connectionState === 'connected') {
+  const onState = () => {
+    const state = conn.connectionState === 'new' ? conn.iceConnectionState : conn.connectionState
+    if (state === 'connected' || state === 'completed') {
       if (ringTimeout) clearTimeout(ringTimeout)
-      set({ phase: 'connected', startedAt: get().startedAt ?? Date.now() })
+      if (dropTimeout) { clearTimeout(dropTimeout); dropTimeout = null }
+      set({ phase: 'connected', startedAt: get().startedAt ?? Date.now(), notice: null })
+    } else if (state === 'disconnected') {
+      // often a brief network blip: give it 10 s to recover before giving up
+      set({ notice: 'Reconnecting…' })
+      if (!dropTimeout) dropTimeout = setTimeout(() => finish('Connection lost', true), 10_000)
+    } else if (state === 'failed') {
+      finish('Connection failed. A TURN server may be needed on this network.', true)
     }
-    if (conn.connectionState === 'failed') finish('Connection lost', true)
   }
+  conn.onconnectionstatechange = onState
+  conn.oniceconnectionstatechange = onState
   pc = conn
   return conn
 }
 
 function cleanup() {
   if (ringTimeout) clearTimeout(ringTimeout)
+  if (dropTimeout) { clearTimeout(dropTimeout); dropTimeout = null }
   get().localStream?.getTracks().forEach((t) => t.stop())
   pc?.close()
   pc = null
@@ -99,8 +121,14 @@ function finish(notice: string | null, notifyPeer: boolean) {
 
 export async function startCall(peerId: string, video: boolean): Promise<string | null> {
   if (get().phase !== 'idle' && get().phase !== 'ended') return null
+  if (!getTransport()) throw new Error('Calls need the realtime connection, which is offline right now.')
+  if (!useChat.getState().presence[peerId]) {
+    const name = useChat.getState().users[peerId]?.displayName ?? 'That person'
+    throw new Error(`${name} is offline. Try again when they are online.`)
+  }
   if (resetTimeout) clearTimeout(resetTimeout)
   const callId = crypto.randomUUID()
+  iceServers = await loadIceServers()
   try {
     const stream = await getMedia(video)
     set({ ...idle, phase: 'calling', callId, peerId, video, localStream: stream })
@@ -117,6 +145,7 @@ export async function acceptCall() {
   const { callId, peerId, video, phase } = get()
   if (phase !== 'incoming' || !callId || !peerId) return false
   try {
+    iceServers = await loadIceServers()
     const stream = await getMedia(video)
     set({ localStream: stream, phase: 'connecting' })
     createPc(peerId, callId)
