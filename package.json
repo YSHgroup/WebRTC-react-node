@@ -1,23 +1,25 @@
 {
   "name": "huddle",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/migrate.mjs && next build",
     "start": "next start",
+    "db:migrate": "node scripts/migrate.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "next lint"
   },
   "dependencies": {
-    "@vercel/postgres": "^0.10.0",
+    "@neondatabase/serverless": "^1.0.0",
     "clsx": "^2.1.1",
     "emoji-picker-react": "^4.12.0",
     "firebase": "^10.14.1",
-    "firebase-admin": "^12.6.0",
+    "firebase-admin": "^12.7.0",
+    "jose": "^5.9.6",
     "libphonenumber-js": "^1.11.12",
     "lucide-react": "^0.446.0",
-    "next": "^14.2.15",
+    "next": "^14.2.30",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "sonner": "^1.5.0",
@@ -34,6 +36,6 @@
     "typescript": "^5.6.2"
   },
   "engines": {
-    "node": ">=18.18"
+    "node": ">=20"
   }
 }
