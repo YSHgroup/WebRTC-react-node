@@ -83,9 +83,13 @@ function RegisterForm() {
   const kind = kindOf(identifier)
   useEffect(() => { if (kind === 'email') preloadCaptcha() }, [kind])
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
+    const formData = new FormData(e.currentTarget)
+    const selectedMethod = formData.get('email-verification-method')
+    const selectedVerificationMethod: VerificationMethod =
+      selectedMethod === 'link' ? 'link' : 'code'
     if (kind === 'unknown') return setError('Enter an email address or a phone number.')
     if (kind === 'phone') {
       const parsed = parsePhoneNumberFromString(identifier, country)
@@ -101,13 +105,13 @@ function RegisterForm() {
         identifier: identifier.trim(),
         country,
         password,
-        verificationMethod,
+        verificationMethod: selectedVerificationMethod,
         captchaToken: await captchaToken('register'),
       })
       const user = result.user
       if (user.needsVerification) {
         setError(result.verificationError ?? null)
-        setSentMethod(result.verificationError ? null : verificationMethod)
+        setSentMethod(result.verificationError ? null : selectedVerificationMethod)
         setStep('verify-email')
       } else router.replace('/chat')
     } catch (err) { setError(authError(err)) } finally { setBusy(false) }
@@ -175,6 +179,7 @@ function RegisterForm() {
             value={verificationMethod}
             onChange={(method) => {
               setVerificationMethod(method)
+              setSentMethod(null)
               setError(null)
             }}
           />
