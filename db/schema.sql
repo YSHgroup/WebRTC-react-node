@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
   phone           TEXT,
   password_hash   TEXT,
   google_sub      TEXT,
+  firebase_uid    TEXT,
+  firebase_google BOOLEAN NOT NULL DEFAULT false,
   email_verified  BOOLEAN NOT NULL DEFAULT false,
   phone_verified  BOOLEAN NOT NULL DEFAULT false,
   photo_url       TEXT,
@@ -18,11 +20,16 @@ CREATE TABLE IF NOT EXISTS users (
   last_login_at   BIGINT
 );
 
+ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid TEXT;
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_google BOOLEAN NOT NULL DEFAULT false;
+
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_key ON users (lower(email)) WHERE email IS NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS users_phone_key ON users (phone) WHERE phone IS NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS users_google_sub_key ON users (google_sub) WHERE google_sub IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS users_firebase_uid_key ON users (firebase_uid) WHERE firebase_uid IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS conversations (
   id           TEXT PRIMARY KEY,

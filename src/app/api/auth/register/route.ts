@@ -3,6 +3,7 @@ import { verifyCaptcha } from '@/lib/server/captcha'
 import { codeEmail, sendMail } from '@/lib/server/mail'
 import { issueCode } from '@/lib/server/codes'
 import { isUniqueViolation } from '@/lib/server/db'
+import { verifyFirebaseIdToken } from '@/lib/server/firebase'
 import { clientIp, handler, HttpError, parseBody } from '@/lib/server/http'
 import { parseIdentifier } from '@/lib/server/identifier'
 import { hashPassword } from '@/lib/server/password'
@@ -19,13 +20,25 @@ const Body = z.object({
   country: z.string().length(2).optional(),
   password: z.string().min(8, 'Use at least 8 characters for the password.').max(128),
   captchaToken: z.string().optional(),
+  firebaseIdToken: z.string().optional(),
 })
 
 export const POST = handler(async (req) => {
   const body = await parseBody(req, Body)
   await rateLimit(`register:${clientIp(req)}`, 10, 60 * 60_000)
-  await verifyCaptcha(body.captchaToken, 'register')
   const id = parseIdentifier(body.identifier, body.country)
+  if ('email' in id) await verifyCaptcha(body.captchaToken, 'register')
+  let firebaseUid: string | undefined
+  if ('phone' in id) {
+    if (!body.firebaseIdToken) throw new HttpError(400, 'Verify your phone number before creating the account.')
+    const identity = await verifyFirebaseIdToken(body.firebaseIdToken)
+    if (identity.firebase?.sign_in_provider !== 'phone' || identity.phone_number !== id.phone) {
+      throw new HttpError(403, 'The verification code was not for this phone number.')
+    }
+    firebaseUid = identity.uid
+  } else if (body.firebaseIdToken) {
+    throw new HttpError(400, 'Phone verification is only accepted for phone accounts.')
+  }
 
   let row
   try {
@@ -34,6 +47,8 @@ export const POST = handler(async (req) => {
       email: 'email' in id ? id.email : null,
       phone: 'phone' in id ? id.phone : null,
       passwordHash: await hashPassword(body.password),
+      firebaseUid,
+      phoneVerified: 'phone' in id,
     })
   } catch (error) {
     if (isUniqueViolation(error)) {
@@ -44,14 +59,17 @@ export const POST = handler(async (req) => {
 
   await startSession(row.id)
   const me = toMe(row)
+  let verificationError: string | undefined
   if (me.needsVerification && me.email) {
     try {
       const code = await issueCode(me.uid, 'verify_email')
       await sendMail(me.email, `${code} is your Huddle verification code`, codeEmail('Verify your email', code), `verification code: ${code}`)
     } catch (error) {
-      // The account exists; the person can ask for another code from the verification screen.
       console.error('[register] could not send verification email', error)
+      verificationError = error instanceof HttpError
+        ? error.message
+        : 'Your account was created, but the verification email could not be sent. Please request another code.'
     }
   }
-  return { user: me }
+  return { user: me, verificationError }
 })

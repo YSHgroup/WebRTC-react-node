@@ -9,18 +9,35 @@ type Result = { user: Me }
 
 const apply = (r: Result) => { useAuth.getState().setUser(r.user); return r.user }
 
-export const registerAccount = (input: { name: string; identifier: string; country: string; password: string; captchaToken?: string }) =>
-  api<Result>('/api/auth/register', { body: input }).then(apply)
+export async function registerAccount(input: {
+  name: string
+  identifier: string
+  country: string
+  password: string
+  captchaToken?: string
+  firebaseIdToken?: string
+}): Promise<{ user: Me; verificationError?: string }> {
+  const result = await api<Result & { verificationError?: string }>('/api/auth/register', { body: input })
+  apply(result)
+  return result
+}
 
 export const loginAccount = (input: { identifier: string; country: string; password: string; captchaToken?: string }) =>
   api<Result>('/api/auth/login', { body: input }).then(apply)
 
+export const loginWithFirebase = (idToken: string) =>
+  api<Result>('/api/auth/firebase', { body: { idToken } }).then(apply)
+
 export const sendEmailCode = () => api('/api/auth/email/send', { method: 'POST', body: {} })
 
 export const verifyEmailCode = async (code: string) => {
-  await api('/api/auth/email/verify', { body: { code } })
-  const r = await api<{ user: Me | null }>('/api/auth/me')
-  useAuth.getState().setUser(r.user)
+  const r = await api<Result>('/api/auth/email/verify', { body: { code } })
+  apply(r)
+}
+
+export async function verifyPhoneAccount(idToken: string) {
+  const r = await api<Result>('/api/auth/phone/verify', { body: { idToken } })
+  return apply(r)
 }
 
 export const requestPasswordReset = (email: string) => api('/api/auth/password/forgot', { body: { email } })

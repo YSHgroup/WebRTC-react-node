@@ -4,11 +4,12 @@ import { OtpInput } from '@/components/ui/OtpInput'
 import { FormError } from './AuthShell'
 
 /** Shared "enter the 6-digit code" step for email and SMS verification. */
-export function CodeStep({ sentTo, onSubmit, onResend, onBack }: {
+export function CodeStep({ sentTo, onSubmit, onResend, onBack, sent = true }: {
   sentTo: string
   onSubmit: (code: string) => Promise<void>
   onResend: () => Promise<void>
   onBack: () => void
+  sent?: boolean
 }) {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -29,7 +30,10 @@ export function CodeStep({ sentTo, onSubmit, onResend, onBack }: {
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); submit() }} className="space-y-4">
-      <p className="text-center text-sm text-mute">We sent a 6-digit code to <span className="font-medium text-ink">{sentTo}</span>.</p>
+      <p className="text-center text-sm text-mute">
+        {sent ? 'We sent a 6-digit code to' : 'A 6-digit code is required to verify'}{' '}
+        <span className="font-medium text-ink">{sentTo}</span>.
+      </p>
       <OtpInput value={code} onChange={(v) => { setCode(v); if (v.length === 6) submit(v) }} disabled={busy} />
       <FormError message={error} />
       <button className="btn-primary w-full" disabled={busy || code.length !== 6}>{busy ? 'Verifying…' : 'Verify code'}</button>

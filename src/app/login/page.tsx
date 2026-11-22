@@ -1,35 +1,27 @@
 'use client'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
 import type { CountryCode } from 'libphonenumber-js'
-import { AuthShell, Divider, FormError, GoogleMark } from '@/components/auth/AuthShell'
+import { AuthShell, Divider, FormError } from '@/components/auth/AuthShell'
 import { CaptchaNotice } from '@/components/auth/CaptchaNotice'
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 import { IdentifierField, PasswordField, kindOf } from '@/components/auth/IdentifierFields'
-import { authError, loginAccount } from '@/lib/auth/actions'
+import { authError, loginAccount, loginWithFirebase } from '@/lib/auth/actions'
 import { captchaToken, preloadCaptcha } from '@/lib/captcha'
 import { useRedirectIfReady } from '@/hooks/useRedirectIfReady'
 
-const GOOGLE_ERRORS: Record<string, string> = {
-  google_not_configured: 'Google sign-in is not set up on this site yet.',
-  google_cancelled: 'Google sign-in was cancelled.',
-  google_state: 'The Google sign-in session expired. Please try again.',
-  google_unverified: 'Your Google account email is not verified.',
-  google_failed: 'Google sign-in failed. Please try again.',
-}
-
 function LoginForm() {
   const router = useRouter()
-  const params = useSearchParams()
   useRedirectIfReady()
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [country, setCountry] = useState<CountryCode>('US')
-  const [error, setError] = useState<string | null>(GOOGLE_ERRORS[params.get('error') ?? ''] ?? null)
+  const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => { preloadCaptcha() }, [])
   const kind = kindOf(identifier)
+  useEffect(() => { if (kind === 'email') preloadCaptcha() }, [kind])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,7 +29,12 @@ function LoginForm() {
     if (kind === 'unknown') return setError('Enter an email address or a phone number.')
     setBusy(true)
     try {
-      const user = await loginAccount({ identifier: identifier.trim(), country, password, captchaToken: await captchaToken('login') })
+      const user = await loginAccount({
+        identifier: identifier.trim(),
+        country,
+        password,
+        ...(kind === 'email' ? { captchaToken: await captchaToken('login') } : {}),
+      })
       router.replace(user.needsVerification ? '/register?verify=1' : '/chat')
     } catch (err) { setError(authError(err)) } finally { setBusy(false) }
   }
@@ -58,7 +55,14 @@ function LoginForm() {
         <button className="btn-primary w-full" disabled={busy}>{busy ? 'Please wait…' : 'Sign in'}</button>
       </form>
       <Divider />
-      <a href="/api/auth/google" className="btn-ghost w-full"><GoogleMark /> Continue with Google</a>
+      <GoogleSignInButton
+        label="Continue with Google"
+        onSuccess={async (idToken) => {
+          const user = await loginWithFirebase(idToken)
+          router.replace(user.needsVerification ? '/register?verify=1' : '/chat')
+        }}
+        onError={setError}
+      />
       <CaptchaNotice />
     </AuthShell>
   )

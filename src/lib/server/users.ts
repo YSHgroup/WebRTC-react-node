@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { getSql, type Row } from './db'
 
-export const emailVerificationRequired = () => process.env.REQUIRE_EMAIL_VERIFICATION === 'true'
+export const emailVerificationRequired = () => process.env.REQUIRE_EMAIL_VERIFICATION !== 'false'
 const showContact = () => process.env.DIRECTORY_SHOW_CONTACT !== 'false'
 
 export interface PublicUser {
@@ -27,7 +27,7 @@ const photoFor = (r: Row): string | null =>
   r.photo_data ? `/api/avatar/${r.id}?v=${r.photo_version}` : (r.photo_url ?? null)
 
 export function toMe(r: Row): Me {
-  const hasGoogle = !!r.google_sub
+  const hasGoogle = !!r.google_sub || !!r.firebase_google
   return {
     uid: r.id,
     displayName: r.display_name,
@@ -40,7 +40,8 @@ export function toMe(r: Row): Me {
     phoneVerified: !!r.phone_verified,
     hasPassword: !!r.password_hash,
     hasGoogle,
-    needsVerification: emailVerificationRequired() && !!r.email && !r.email_verified && !hasGoogle,
+    needsVerification: (emailVerificationRequired() && !!r.email && !r.email_verified)
+      || (!!r.phone && !r.phone_verified),
   }
 }
 
@@ -74,14 +75,18 @@ export async function createUser(input: {
   phone?: string | null
   passwordHash?: string | null
   googleSub?: string | null
+  firebaseUid?: string | null
+  firebaseGoogle?: boolean
   emailVerified?: boolean
+  phoneVerified?: boolean
   photoUrl?: string | null
 }): Promise<Row> {
   const id = randomUUID()
   const rows = await getSql()`
-    INSERT INTO users (id, display_name, email, phone, password_hash, google_sub, email_verified, photo_url, created_at, last_login_at)
+    INSERT INTO users (id, display_name, email, phone, password_hash, google_sub, firebase_uid, firebase_google, email_verified, phone_verified, photo_url, created_at, last_login_at)
     VALUES (${id}, ${input.name}, ${input.email ?? null}, ${input.phone ?? null}, ${input.passwordHash ?? null},
-            ${input.googleSub ?? null}, ${input.emailVerified ?? false}, ${input.photoUrl ?? null},
+            ${input.googleSub ?? null}, ${input.firebaseUid ?? null}, ${input.firebaseGoogle ?? false}, ${input.emailVerified ?? false},
+            ${input.phoneVerified ?? false}, ${input.photoUrl ?? null},
             ${Date.now()}::bigint, ${Date.now()}::bigint)
     RETURNING *`
   await joinDefaultGroups(id)

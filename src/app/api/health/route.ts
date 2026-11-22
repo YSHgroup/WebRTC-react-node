@@ -1,7 +1,7 @@
 import { getSql } from '@/lib/server/db'
-import { realtimeConfigured } from '@/lib/server/firebase'
-import { googleConfigured } from '@/lib/server/google'
+import { firebaseAuthConfigured, realtimeConfigured } from '@/lib/server/firebase'
 import { handler } from '@/lib/server/http'
+import { emailVerificationRequired } from '@/lib/server/users'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -25,9 +25,11 @@ export const GET = handler(async () => {
     database,
     authSecret: (process.env.AUTH_SECRET?.length ?? 0) >= 32,
     realtime: realtimeConfigured(),
-    google: googleConfigured(),
+    google: firebaseAuthConfigured(),
+    firebaseAuth: firebaseAuthConfigured(),
     emailDelivery: !!process.env.RESEND_API_KEY,
-    emailVerificationRequired: process.env.REQUIRE_EMAIL_VERIFICATION === 'true',
+    emailVerificationRequired: emailVerificationRequired(),
+    phoneVerificationRequired: true,
     captcha: !!process.env.RECAPTCHA_SECRET_KEY,
     captchaSiteKey: !!(process.env.RECAPTCHA_SITE_KEY || process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY),
     turn: !!(process.env.TURN_URLS || process.env.CLOUDFLARE_TURN_KEY_ID),

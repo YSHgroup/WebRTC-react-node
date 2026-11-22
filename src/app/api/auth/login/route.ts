@@ -22,8 +22,8 @@ export const POST = handler(async (req) => {
   const body = await parseBody(req, Body)
   const ip = clientIp(req)
   await rateLimit(`login-ip:${ip}`, 30, 15 * 60_000)
-  await verifyCaptcha(body.captchaToken, 'login')
   const id = parseIdentifier(body.identifier, body.country)
+  if ('email' in id) await verifyCaptcha(body.captchaToken, 'login')
   await rateLimit(`login-id:${'email' in id ? id.email : id.phone}`, 8, 15 * 60_000)
 
   const row = await findByIdentifier(id)

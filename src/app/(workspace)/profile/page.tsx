@@ -1,5 +1,6 @@
 'use client'
 import { Camera, LogOut } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Avatar } from '@/components/ui/Avatar'
@@ -12,6 +13,7 @@ import { formatAsYouType, parsePhone } from '@/lib/phone'
 import { useAuth } from '@/store/auth'
 
 export default function ProfilePage() {
+  const router = useRouter()
   const me = useMe()
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -37,6 +39,10 @@ export default function ProfilePage() {
     try {
       const user = await updateProfile({ displayName: name.trim(), bio: bio.trim().slice(0, 200), phone: phoneOut })
       useAuth.getState().setUser(user)
+      if (user.needsVerification) {
+        router.replace('/register?verify=1')
+        return
+      }
       toast.success('Profile saved')
     } catch (err) { toast.error((err as Error).message || 'Could not save your profile.') } finally { setSaving(false) }
   }

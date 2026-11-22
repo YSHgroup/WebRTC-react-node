@@ -1,6 +1,6 @@
 # Huddle v2 — Installation Guide
 
-Free stack: **Next.js on Vercel** + **Neon Postgres** (data and logins) + **Firebase Realtime Database** (live delivery only).
+Free stack: **Next.js on Vercel** + **Neon Postgres** (application data and accounts) + **Firebase Authentication** (Google sign-in and phone verification) + **Firebase Realtime Database** (live delivery).
 
 ## How it fits together
 
@@ -8,15 +8,16 @@ Free stack: **Next.js on Vercel** + **Neon Postgres** (data and logins) + **Fire
 |---|---|---|
 | Next.js on Vercel | Pages and API | — |
 | Neon Postgres | Users, password hashes, conversations, messages, files | **Here, only here** |
-| Firebase Realtime DB | Delivers "new message", typing, online status and call signals instantly | Nothing. Browsers sign in with a token that carries only a user id |
+| Firebase Authentication | Google sign-in and SMS phone verification; verified identities are synced to Neon | Google identity and verified phone |
+| Firebase Realtime DB | Delivers new messages, typing, online status and call signals instantly | No messages or contact details |
 
-People register and sign in with *this app*. Firebase Authentication is never used to store emails, phone numbers or passwords.
+Email/password accounts and the app's user directory are stored in Neon. Firebase Auth handles Google sign-in and phone-number SMS verification.
 
 ## 1. What you need
 
 - Node.js 20 or newer and Git
 - Free accounts: GitHub, Vercel, Firebase (Google account)
-- Optional: Google Cloud (Google sign-in), Resend (emails), Cloudflare (TURN relay for calls)
+- Optional: Resend (email verification), Cloudflare (TURN relay for calls)
 
 ## 2. Put the code in your repo
 
@@ -37,9 +38,9 @@ People register and sign in with *this app*. Firebase Authentication is never us
 2. **Build → Realtime Database → Create database.** Choose a region near your users. Start in *locked mode*.
 3. Open the **Rules** tab, replace everything with the contents of `database.rules.json`, and **Publish**.
 4. Copy the database URL shown at the top of the **Data** tab, for example `https://my-app-default-rtdb.europe-west1.firebasedatabase.app`. This is `FIREBASE_DATABASE_URL`.
-5. **Build → Authentication → Get started.** Do not enable any sign-in provider. This only switches on the token service the app uses.
-6. **Project settings → General →** copy the **Web API Key** (`FIREBASE_API_KEY`).
-7. **Project settings → Service accounts → Generate new private key.** Open the downloaded JSON file, copy its whole content, and use it as `FIREBASE_SERVICE_ACCOUNT` (one line is fine; Vercel accepts pasted JSON).
+5. **Build → Authentication → Get started → Sign-in method.** Enable **Google** and **Phone** providers. Add your production hostname (for example `YOUR-APP.vercel.app`) under **Settings → Authorized domains**. Phone Authentication uses Firebase's SMS service and its reCAPTCHA challenge.
+6. **Project settings → General →** copy the **Web API Key** (`FIREBASE_API_KEY`) and the **App ID** for your Web app (`FIREBASE_APP_ID`). If there is no Web app, register one in project settings.
+7. **Project settings → Service accounts → Generate new private key.** Open the downloaded JSON file, copy its whole content, and use it as `FIREBASE_SERVICE_ACCOUNT` (one line is fine; Vercel accepts pasted JSON). The service-account `project_id` is detected automatically.
 
 Console labels move around from time to time; follow the intent if a name differs.
 
@@ -58,36 +59,35 @@ Run `openssl rand -base64 48` (or any password generator, 32+ characters). This 
 | `FIREBASE_SERVICE_ACCOUNT` | JSON from step 4.7 |
 | `FIREBASE_DATABASE_URL` | from step 4.4 |
 | `FIREBASE_API_KEY` | from step 4.6 |
+| `FIREBASE_APP_ID` | from step 4.6 |
 | `DATABASE_URL` | added by Neon (step 3) |
 | `SITE_URL` | `https://YOUR-APP.vercel.app` (the production domain used for canonical links and the sitemap) |
+| `RESEND_API_KEY` | transactional email verification codes |
+| `REQUIRE_EMAIL_VERIFICATION` | `true` (the default) |
 
 3. In `vercel.json`, set `regions` to the Vercel region closest to your Neon database (for example `iad1` for US East, `fra1` for Frankfurt). Short distance between functions and the database makes everything faster.
 4. Click **Deploy**.
 
 ## 7. Check it works
 
-1. Open `https://YOUR-APP.vercel.app/api/health`. You want `"database": "ok"`, `"authSecret": true`, `"realtime": true`. The page shows only true/false, never secret values.
+1. Open `https://YOUR-APP.vercel.app/api/health`. You want `"database": "ok"`, `"authSecret": true`, `"realtime": true`, `"firebaseAuth": true`, `"emailDelivery": true`, and `"emailVerificationRequired": true`. The page shows only true/false, never secret values.
 2. Register two accounts, one in a normal window and one in a private window.
 3. Send messages both ways: they should appear instantly, and typing and green "online" dots should work.
 4. Start a video call from one account to the other and allow camera and microphone.
 
 If the first message works but nothing is instant, realtime is misconfigured. The app keeps working by polling every few seconds, and a banner tells you so.
 
-## 8. Optional features
+## 8. Email, bot protection, and calls
 
-### Google sign-in
-1. Google Cloud console → **APIs & Services → Credentials → Create credentials → OAuth client ID**, type **Web application**. Configure the consent screen first if asked.
-2. **Authorized redirect URI:** `https://YOUR-DOMAIN/api/auth/google/callback` (also `http://localhost:3000/api/auth/google/callback` for local testing).
-3. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to Vercel and redeploy.
-4. Preview deployments have different URLs, so Google sign-in works on production and on any preview URL you add explicitly.
+### Firebase sign-in and phone verification
+Enable Google and Phone in **Firebase Authentication → Sign-in method**, and add each deployment hostname under **Authorized domains**. Set `FIREBASE_SERVICE_ACCOUNT`, `FIREBASE_API_KEY`, and `FIREBASE_APP_ID` in Vercel. Google sign-in uses Firebase Auth; the server verifies its ID token and stores the verified Google email and Firebase user ID in Neon. No separate Google OAuth client secret is needed.
+
+Phone sign-up and verification use Firebase Phone Authentication. A user must enter the SMS code before a phone account is created in Neon. SMS quotas, billing requirements, and availability depend on Firebase and the user's region; test with Firebase's configured test phone numbers before launch.
 
 ### Emails: verification and password reset
 1. Create a Resend account and an API key; set `RESEND_API_KEY`.
 2. The default sender `onboarding@resend.dev` only delivers to your own Resend account address. Verify a domain in Resend, then set `MAIL_FROM` to an address on it.
-3. When emails reach any address, set `REQUIRE_EMAIL_VERIFICATION=true` to force new email accounts to confirm with a 6-digit code. Do not enable it earlier or new users get locked out.
-
-### Phone numbers
-Phone numbers work as a sign-in name with a password. Real SMS verification is not free anywhere, so numbers are stored as *unverified*. Anyone could type someone else's number when registering, so do not treat phone numbers as proof of identity.
+3. Email verification is enabled by default. New email/password accounts receive a 6-digit code and remain restricted until the code is confirmed. Google accounts use Google's verified-email claim instead.
 
 ### Bot protection
 Create a reCAPTCHA v3 key for your production domain. Set `RECAPTCHA_SECRET_KEY` and `RECAPTCHA_SITE_KEY` in Vercel. Use the plain `RECAPTCHA_SITE_KEY` name; the app serves this public key to the browser at runtime, so it does not need a `NEXT_PUBLIC_` prefix or a rebuild when changed. Keep `RECAPTCHA_SECRET_KEY` private. reCAPTCHA v3 runs invisibly (it does not show a checkbox); users should see Google's badge and the privacy/terms notice on the sign-in and registration pages.
@@ -130,13 +130,16 @@ Most calls connect with the built-in STUN servers. Offices, mobile networks and 
 | Build fails: "DATABASE_URL is not set" | Add the Neon connection before deploying. |
 | Cannot sign in, "AUTH_SECRET" error | Secret missing or shorter than 32 characters. |
 | `"realtime": false` | Missing service account, database URL or Web API key. Variables changes need a redeploy. |
-| "Realtime is not configured" or sign-in with token fails | Authentication was never switched on (step 4.5), or the service account is from a different project than the database. |
+| `"firebaseAuth": false` | Check `FIREBASE_SERVICE_ACCOUNT`, `FIREBASE_API_KEY`, and `FIREBASE_APP_ID`; all must come from the same Firebase project. |
+| Firebase says `auth/operation-not-allowed` | Enable Google and Phone under Firebase Authentication → Sign-in method. |
+| Firebase says `auth/unauthorized-domain` | Add the exact Vercel production hostname to Firebase Authentication → Settings → Authorized domains. |
+| Phone verification SMS is not delivered | Check the Phone provider, allowed domain, SMS quota/region, and Firebase billing; test with a Firebase test phone number. |
+| "Realtime is not configured" or sign-in with token fails | Check the service account and database URL, and ensure the service account belongs to the Firebase project hosting Realtime Database. |
 | Messages only appear after a few seconds | Realtime is down and the app is polling. Check the rules were published and the URL has no trailing path. |
-| Google error "redirect_uri_mismatch" | The redirect URI in Google Cloud must match exactly `https://YOUR-DOMAIN/api/auth/google/callback`. |
 | Registration email never arrives | Resend test sender only reaches your own address. Verify a domain. |
 | Call stays on "Connecting…" | Network needs TURN (section 8). Also check the browser has camera and microphone permission. |
 | "X is offline" when calling | Calls ring only people who are online. |
 
-## 13. Moving old accounts
+## 13. Existing accounts
 
-Accounts created with the previous Firebase-Auth version are not carried over, because their passwords live in Firebase. For a team that is still testing, ask everyone to register again. If you need to migrate real users, export them with `firebase auth:export` and import the hashes in a one-off script; ask for help with this.
+Email/password accounts already in Neon remain in place. Existing Google accounts can be linked on Firebase sign-in when the verified Google email matches the Neon account. Phone accounts must complete SMS verification before access is granted. The deployment build applies the new Firebase identity columns automatically.

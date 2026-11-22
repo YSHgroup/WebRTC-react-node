@@ -2,18 +2,20 @@
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useRef, useState } from 'react'
+import { parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js'
 import { toast } from 'sonner'
-import type { CountryCode } from 'libphonenumber-js'
-import { AuthShell, Divider, FormError, GoogleMark } from '@/components/auth/AuthShell'
+import { AuthShell, Divider, FormError } from '@/components/auth/AuthShell'
 import { CaptchaNotice } from '@/components/auth/CaptchaNotice'
 import { CodeStep } from '@/components/auth/CodeStep'
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 import { IdentifierField, NameField, PasswordField, kindOf } from '@/components/auth/IdentifierFields'
-import { authError, registerAccount, sendEmailCode, verifyEmailCode, logout } from '@/lib/auth/actions'
+import { PhoneCodeStep } from '@/components/auth/PhoneCodeStep'
+import { authError, loginWithFirebase, registerAccount, sendEmailCode, verifyEmailCode, verifyPhoneAccount, logout } from '@/lib/auth/actions'
 import { captchaToken, preloadCaptcha } from '@/lib/captcha'
 import { useRedirectIfReady } from '@/hooks/useRedirectIfReady'
 import { useAuth } from '@/store/auth'
 
-type Step = 'form' | 'verify'
+type Step = 'form' | 'phone' | 'verify-email' | 'verify-phone'
 
 function RegisterForm() {
   const router = useRouter()
@@ -25,45 +27,98 @@ function RegisterForm() {
   const [name, setName] = useState('')
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
+  const [phoneToVerify, setPhoneToVerify] = useState('')
   const [country, setCountry] = useState<CountryCode>('US')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const autoSent = useRef(false)
 
-  useEffect(() => { preloadCaptcha() }, [])
-
   // Signed in but the email is not verified yet (sent here from login or the workspace).
   useEffect(() => {
     if (params.get('verify') && status === 'unverified' && me && !autoSent.current) {
       autoSent.current = true
-      setStep('verify')
-      sendEmailCode().catch((e) => setError(authError(e)))
+      if (me.phone && !me.phoneVerified) {
+        setPhoneToVerify(me.phone)
+        setStep('verify-phone')
+      } else {
+        setStep('verify-email')
+        sendEmailCode().catch((e) => setError(authError(e)))
+      }
     }
   }, [params, status, me])
 
   const kind = kindOf(identifier)
+  useEffect(() => { if (kind === 'email') preloadCaptcha() }, [kind])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     if (kind === 'unknown') return setError('Enter an email address or a phone number.')
+    if (kind === 'phone') {
+      const parsed = parsePhoneNumberFromString(identifier, country)
+      if (!parsed?.isValid()) return setError('Enter a valid phone number including its country code.')
+      setPhoneToVerify(parsed.number)
+      setStep('phone')
+      return
+    }
     setBusy(true)
     try {
-      const user = await registerAccount({ name: name.trim(), identifier: identifier.trim(), country, password, captchaToken: await captchaToken('register') })
+      const result = await registerAccount({ name: name.trim(), identifier: identifier.trim(), country, password, captchaToken: await captchaToken('register') })
+      const user = result.user
       if (user.needsVerification) {
-        autoSent.current = true // the server already emailed the code
-        setStep('verify')
+        autoSent.current = true
+        setError(result.verificationError ?? null)
+        setStep('verify-email')
       } else router.replace('/chat')
     } catch (err) { setError(authError(err)) } finally { setBusy(false) }
   }
 
-  if (step === 'verify' && me) {
+  if (step === 'phone') {
+    return (
+      <AuthShell title="Verify your phone" subtitle="We’ll text a code before creating your account">
+        <PhoneCodeStep
+          phone={phoneToVerify}
+          onBack={() => setStep('form')}
+          onVerify={async (firebaseIdToken) => {
+            const result = await registerAccount({
+              name: name.trim(),
+              identifier: phoneToVerify,
+              country,
+              password,
+              firebaseIdToken,
+            })
+            if (result.user.needsVerification) throw new Error('Phone verification did not complete. Please try again.')
+            router.replace('/chat')
+          }}
+        />
+      </AuthShell>
+    )
+  }
+
+  if (step === 'verify-phone' && me?.phone) {
+    return (
+      <AuthShell title="Verify your phone" subtitle="Enter the code we text to finish signing in">
+        <PhoneCodeStep
+          phone={me.phone}
+          onBack={() => { logout() }}
+          onVerify={async (idToken) => {
+            await verifyPhoneAccount(idToken)
+            toast.success('Phone number verified.')
+            router.replace('/chat')
+          }}
+        />
+      </AuthShell>
+    )
+  }
+
+  if (step === 'verify-email' && me) {
     return (
       <AuthShell title="Verify your email" subtitle="One more step to finish creating your account">
         <CodeStep
           sentTo={me.email ?? 'your email'}
+          sent={!error}
           onBack={() => { logout() }}
-          onResend={async () => { await sendEmailCode(); toast.success('A new code is on its way.') }}
+          onResend={async () => { await sendEmailCode(); setError(null); toast.success('A new code is on its way.') }}
           onSubmit={async (code) => {
             try { await verifyEmailCode(code) } catch (e) { throw new Error(authError(e)) }
             toast.success('Email verified.')
@@ -86,13 +141,20 @@ function RegisterForm() {
         <IdentifierField value={identifier} onChange={setIdentifier} country={country} onCountry={setCountry} />
         <PasswordField value={password} onChange={setPassword} autoComplete="new-password" />
         {kind === 'phone' && (
-          <p className="text-xs text-mute">Phone numbers work as your sign-in name. SMS verification is not available on the free setup, so the number is saved unverified.</p>
+          <p className="text-xs text-mute">We’ll verify your phone number by SMS before creating your account.</p>
         )}
         <FormError message={error} />
         <button className="btn-primary w-full" disabled={busy}>{busy ? 'Please wait…' : 'Sign up'}</button>
       </form>
       <Divider />
-      <a href="/api/auth/google" className="btn-ghost w-full"><GoogleMark /> Sign up with Google</a>
+      <GoogleSignInButton
+        label="Sign up with Google"
+        onSuccess={async (idToken) => {
+          const user = await loginWithFirebase(idToken)
+          router.replace(user.needsVerification ? '/register?verify=1' : '/chat')
+        }}
+        onError={setError}
+      />
       <CaptchaNotice />
     </AuthShell>
   )
