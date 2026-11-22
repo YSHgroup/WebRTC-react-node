@@ -1,9 +1,9 @@
-import { neon } from '@neondatabase/serverless'
+import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type Row = Record<string, any>
 
-type Sql = ReturnType<typeof neon>
+type Sql = NeonQueryFunction<false, false>
 let client: Sql | null = null
 
 /** Neon serverless driver over HTTPS — no connection pool to exhaust on Vercel. */

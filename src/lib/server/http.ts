@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import type { ZodSchema } from 'zod'
+import type { output, ZodTypeAny } from 'zod'
 
 export class HttpError extends Error {
   constructor(public status: number, message: string, public code?: string) {
@@ -46,7 +46,7 @@ export function handler(fn: (req: Request, ctx: Ctx) => Promise<unknown>) {
   }
 }
 
-export async function parseBody<T>(req: Request, schema: ZodSchema<T>): Promise<T> {
+export async function parseBody<T extends ZodTypeAny>(req: Request, schema: T): Promise<output<T>> {
   let raw: unknown
   try { raw = await req.json() } catch { throw new HttpError(400, 'Invalid request body.') }
   const parsed = schema.safeParse(raw)
