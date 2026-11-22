@@ -25,7 +25,14 @@ export function CodeStep({ sentTo, onSubmit, onResend, onBack, sent = true }: {
   const submit = async (value = code) => {
     if (value.length !== 6 || busy) return
     setBusy(true); setError(null)
-    try { await onSubmit(value) } catch (e) { setError((e as Error).message); setCode('') } finally { setBusy(false) }
+    try {
+      await onSubmit(value)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not verify that code. Please try again.')
+      setCode('')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -42,7 +49,13 @@ export function CodeStep({ sentTo, onSubmit, onResend, onBack, sent = true }: {
         <button
           type="button"
           disabled={wait > 0}
-          onClick={async () => { setWait(30); setError(null); try { await onResend() } catch (e) { setError((e as Error).message) } }}
+          onClick={async () => {
+            setWait(30)
+            setError(null)
+            try { await onResend() } catch (e) {
+              setError(e instanceof Error ? e.message : 'Could not send a new code. Please try again.')
+            }
+          }}
           className="font-medium text-brand-600 disabled:text-mute"
         >
           {wait > 0 ? `Resend code in ${wait}s` : 'Resend code'}

@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import { verifyCaptcha } from '@/lib/server/captcha'
-import { codeEmail, sendMail } from '@/lib/server/mail'
-import { issueCode } from '@/lib/server/codes'
+import { sendEmailVerification } from '@/lib/server/email-verification'
 import { isUniqueViolation } from '@/lib/server/db'
 import { verifyFirebaseIdToken } from '@/lib/server/firebase'
 import { clientIp, handler, HttpError, parseBody } from '@/lib/server/http'
@@ -21,6 +20,7 @@ const Body = z.object({
   password: z.string().min(8, 'Use at least 8 characters for the password.').max(128),
   captchaToken: z.string().optional(),
   firebaseIdToken: z.string().optional(),
+  verificationMethod: z.enum(['code', 'link']).default('code'),
 })
 
 export const POST = handler(async (req) => {
@@ -62,13 +62,12 @@ export const POST = handler(async (req) => {
   let verificationError: string | undefined
   if (me.needsVerification && me.email) {
     try {
-      const code = await issueCode(me.uid, 'verify_email')
-      await sendMail(me.email, `${code} is your Huddle verification code`, codeEmail('Verify your email', code), `verification code: ${code}`)
+      await sendEmailVerification(me.uid, me.email, body.verificationMethod)
     } catch (error) {
       console.error('[register] could not send verification email', error)
       verificationError = error instanceof HttpError
         ? error.message
-        : 'Your account was created, but the verification email could not be sent. Please request another code.'
+        : `Your account was created, but the verification email could not be sent. Please request another ${body.verificationMethod === 'code' ? 'code' : 'verification link'}.`
     }
   }
   return { user: me, verificationError }

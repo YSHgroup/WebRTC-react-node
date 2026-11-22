@@ -14,6 +14,7 @@ export async function registerAccount(input: {
   identifier: string
   country: string
   password: string
+  verificationMethod?: 'code' | 'link'
   captchaToken?: string
   firebaseIdToken?: string
 }): Promise<{ user: Me; verificationError?: string }> {
@@ -28,12 +29,16 @@ export const loginAccount = (input: { identifier: string; country: string; passw
 export const loginWithFirebase = (idToken: string) =>
   api<Result>('/api/auth/firebase', { body: { idToken } }).then(apply)
 
-export const sendEmailCode = () => api('/api/auth/email/send', { method: 'POST', body: {} })
+export const sendEmailVerification = (method: 'code' | 'link') =>
+  api('/api/auth/email/send', { method: 'POST', body: { method } })
 
 export const verifyEmailCode = async (code: string) => {
   const r = await api<Result>('/api/auth/email/verify', { body: { code } })
   apply(r)
 }
+
+export const verifyEmailLink = (uid: string, token: string) =>
+  api('/api/auth/email/verify-link', { body: { uid, token } })
 
 export async function verifyPhoneAccount(idToken: string) {
   const r = await api<Result>('/api/auth/phone/verify', { body: { idToken } })

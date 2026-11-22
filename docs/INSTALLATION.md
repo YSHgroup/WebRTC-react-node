@@ -87,7 +87,7 @@ Phone sign-up and verification use Firebase Phone Authentication. A user must en
 ### Emails: verification and password reset
 1. Create a Resend account and an API key; set `RESEND_API_KEY`.
 2. The default sender `onboarding@resend.dev` only delivers to your own Resend account address. Verify a domain in Resend, then set `MAIL_FROM` to an address on it.
-3. Email verification is enabled by default. New email/password accounts receive a 6-digit code and remain restricted until the code is confirmed. Google accounts use Google's verified-email claim instead.
+3. Email verification is enabled by default. During email/password registration, users can choose a 6-digit code or a one-time verification link; both expire after 10 minutes, and accounts remain restricted until verified. Unverified users can switch methods and request another email. Google accounts use Google's verified-email claim instead.
 
 ### Bot protection
 Create a reCAPTCHA v3 key for your production domain. Set `RECAPTCHA_SECRET_KEY` and `RECAPTCHA_SITE_KEY` in Vercel. Use the plain `RECAPTCHA_SITE_KEY` name; the app serves this public key to the browser at runtime, so it does not need a `NEXT_PUBLIC_` prefix or a rebuild when changed. Keep `RECAPTCHA_SECRET_KEY` private. reCAPTCHA v3 runs invisibly (it does not show a checkbox); users should see Google's badge and the privacy/terms notice on the sign-in and registration pages.
