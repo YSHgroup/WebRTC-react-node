@@ -52,6 +52,7 @@ export function useBoot() {
   useEffect(() => {
     if (status !== 'ready' || !uid) return
     let cancelled = false
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
     const unsubs: (() => void)[] = []
 
     const onInbox = (e: InboxEvent) => {
@@ -82,24 +83,31 @@ export function useBoot() {
         return
       }
 
-      try {
-        const t = await startTransport()
-        if (cancelled) { stopTransport(); return }
-        unsubs.push(
-          t.onConnection((up) => {
-            const wasDown = !useChat.getState().live
-            useChat.getState().setLive(up)
-            if (up && wasDown) { refreshConversations(); resyncActive() } // catch up after (re)connecting
-          }),
-          t.onInbox(onInbox),
-          t.onSignal((from, payload) => { handleSignal(from, payload) }),
-          t.onPresence((p) => useChat.getState().setPresence(p.online, p.lastSeen)),
-        )
-      } catch (e) {
-        console.warn('Realtime unavailable, falling back to polling:', e)
-        useChat.getState().setLive(false)
-        toast.message('Live updates are off — messages refresh every few seconds. Calls need realtime.', { id: 'rt-off' })
+      const connect = async () => {
+        try {
+          const t = await startTransport()
+          if (cancelled) { stopTransport(); return }
+          unsubs.push(
+            t.onConnection((up) => {
+              const wasDown = !useChat.getState().live
+              useChat.getState().setLive(up)
+              if (up && wasDown) { refreshConversations(); resyncActive() }
+            }),
+            t.onInbox(onInbox),
+            t.onSignal((from, payload) => { handleSignal(from, payload) }),
+            t.onPresence((p) => useChat.getState().setPresence(p.online, p.lastSeen)),
+          )
+        } catch (e) {
+          if (cancelled) return
+          const detail = e instanceof Error ? e.message : String(e)
+          console.error('Realtime connection failed; retrying:', e)
+          useChat.getState().setLive(false)
+          toast.message(`Live updates are off; retrying in 5 seconds. Calls require realtime. ${detail}`, { id: 'rt-off' })
+          reconnectTimer = setTimeout(() => { void connect() }, 5000)
+        }
       }
+
+      void connect()
     })()
 
     // Safety net: polling when realtime is down, plus a slow refresh of the people directory.
@@ -117,6 +125,7 @@ export function useBoot() {
     return () => {
       cancelled = true
       unsubs.forEach((u) => u())
+      if (reconnectTimer) clearTimeout(reconnectTimer)
       clearInterval(poll)
       clearInterval(people)
       document.removeEventListener('visibilitychange', onVisible)

@@ -121,7 +121,9 @@ function finish(notice: string | null, notifyPeer: boolean) {
 
 export async function startCall(peerId: string, video: boolean): Promise<string | null> {
   if (get().phase !== 'idle' && get().phase !== 'ended') return null
-  if (!getTransport()) throw new Error('Calls need the realtime connection, which is offline right now.')
+  if (!getTransport() || !useChat.getState().live) {
+    throw new Error('Calls need a live Firebase Realtime Database connection. Realtime is disconnected or still connecting.')
+  }
   if (!useChat.getState().presence[peerId]) {
     const name = useChat.getState().users[peerId]?.displayName ?? 'That person'
     throw new Error(`${name} is offline. Try again when they are online.`)
