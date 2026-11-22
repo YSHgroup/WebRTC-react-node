@@ -7,6 +7,7 @@ import { startTransport, stopTransport, type InboxEvent } from '@/lib/realtime'
 import { handleSignal } from '@/lib/webrtc/callManager'
 import { useAuth } from '@/store/auth'
 import { useChat } from '@/store/chat'
+import { conversationNotificationsEnabled, playNotificationSound, showMessageNotification } from '@/lib/notifications'
 
 const POLL_MS = 8000
 
@@ -69,6 +70,12 @@ export function useBoot() {
       if (!chat.users[e.msg.senderId]) refreshUsers()
       chat.receiveMessage(e.msg, uid)
       if (e.cid === chat.activeCid && e.msg.senderId !== uid) markRead(e.cid)
+      if (e.msg.senderId !== uid && conversationNotificationsEnabled(e.cid)) {
+        const sender = chat.users[e.msg.senderId]?.displayName ?? e.msg.senderName
+        const conversation = chat.conversations.find((c) => c.id === e.cid)
+        showMessageNotification(conversation?.name ?? sender, e.msg.text || 'Sent an attachment')
+        if (chat.activeCid !== e.cid) playNotificationSound()
+      }
     }
 
     ;(async () => {

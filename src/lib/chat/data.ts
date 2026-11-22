@@ -25,10 +25,19 @@ export async function openDm(_me: string, other: string) {
   return r.id
 }
 
-export async function createGroup(_uid: string, name: string, description: string, memberIds: string[] = []) {
-  const r = await api<{ id: string }>('/api/conversations', { body: { type: 'group', name, description, memberIds } })
+export async function createGroup(_uid: string, name: string, description: string, memberIds: string[] = [], isPublic = false) {
+  const r = await api<{ id: string }>('/api/conversations', { body: { type: 'group', name, description, memberIds, isPublic } })
   return r.id
 }
+
+export const fetchPublicGroups = (q = '') =>
+  api<{ conversations: Conversation[] }>(`/api/conversations?public=true&q=${encodeURIComponent(q)}`).then((r) => r.conversations)
+
+export const joinPublicGroup = (cid: string) =>
+  api<{ ok: true }>(`/api/conversations/${cid}/join`, { body: {} }).then(async () => {
+    const { useChat } = await import('@/store/chat')
+    useChat.getState().setConversations(await fetchConversations())
+  })
 
 export const addMembers = (cid: string, userIds: string[]) =>
   api(`/api/conversations/${cid}/members`, { body: { userIds } })

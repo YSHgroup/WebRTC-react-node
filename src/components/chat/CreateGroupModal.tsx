@@ -15,6 +15,7 @@ export function CreateGroupModal({ open, onClose }: { open: boolean; onClose: ()
   const users = useChat((s) => s.users)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [isPublic, setIsPublic] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
 
@@ -31,10 +32,11 @@ export function CreateGroupModal({ open, onClose }: { open: boolean; onClose: ()
     if (name.trim().length < 2) return toast.error('Enter a group name.')
     setBusy(true)
     try {
-      const id = await createGroup(uid, name, description, selected)
+      const id = await createGroup(uid, name, description, selected, isPublic)
       toast.success('Group created')
       setName('')
       setDescription('')
+      setIsPublic(false)
       setSelected([])
       onClose()
       router.push(`/chat/${id}`)
@@ -56,6 +58,17 @@ export function CreateGroupModal({ open, onClose }: { open: boolean; onClose: ()
           <span className="mb-1.5 block text-xs font-semibold text-mute">Description</span>
           <textarea className="field min-h-[72px] resize-y" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} />
         </label>
+        <fieldset>
+          <legend className="mb-2 text-xs font-semibold text-mute">Visibility</legend>
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line p-3">
+            <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="mt-0.5" />
+            <span>
+              <span className="block text-sm font-medium">Public group</span>
+              <span className="block text-xs text-mute">Anyone can search for and join this group.</span>
+            </span>
+          </label>
+          {!isPublic && <p className="mt-2 text-xs text-mute">Private groups can only gain members when an admin adds them.</p>}
+        </fieldset>
         <fieldset>
           <legend className="mb-2 text-xs font-semibold text-mute">Members</legend>
           <ul className="max-h-52 space-y-0.5 overflow-y-auto">

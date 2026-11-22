@@ -1,5 +1,5 @@
 'use client'
-import { Camera, LogOut } from 'lucide-react'
+import { Bell, Camera, LogOut, Volume2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -11,6 +11,13 @@ import { logout } from '@/lib/auth/actions'
 import { avatarFromFile } from '@/lib/image'
 import { formatAsYouType, parsePhone } from '@/lib/phone'
 import { useAuth } from '@/store/auth'
+import {
+  notificationSoundEnabled,
+  notificationsEnabled,
+  requestNotificationPermission,
+  setNotificationSoundEnabled,
+  setNotificationsEnabled,
+} from '@/lib/notifications'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -19,12 +26,19 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState('')
   const [bio, setBio] = useState('')
   const [saving, setSaving] = useState(false)
+  const [notifications, setNotifications] = useState(true)
+  const [notificationSound, setNotificationSound] = useState(true)
   const file = useRef<HTMLInputElement>(null)
   const phoneLocked = !!me.profile?.phoneVerified // verified numbers can't be edited here
 
   useEffect(() => {
     if (me.profile) { setName(me.profile.displayName); setPhone(me.profile.phone ?? ''); setBio(me.profile.bio ?? '') }
   }, [me.profile])
+
+  useEffect(() => {
+    setNotifications(notificationsEnabled())
+    setNotificationSound(notificationSoundEnabled())
+  }, [])
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,6 +98,47 @@ export default function ProfilePage() {
             <textarea className="field min-h-[84px] resize-y" value={bio} onChange={(e) => setBio(e.target.value)} maxLength={200} placeholder="Design is thinking made visual." /></label>
           <button className="btn-primary w-full" disabled={saving}>{saving ? 'Saving…' : 'Save profile'}</button>
         </form>
+
+        <section className="mt-6 overflow-hidden rounded-2xl border border-line">
+          <div className="flex items-center justify-between px-4 py-3.5">
+            <span className="flex items-center gap-2 text-sm font-medium"><Bell size={16} /> Notifications</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={notifications}
+              onClick={async () => {
+                const next = !notifications
+                if (next) {
+                  const permission = await requestNotificationPermission()
+                  if (permission === 'denied' || permission === 'unsupported') {
+                    toast.error('Desktop notifications are unavailable in this browser.')
+                    return
+                  }
+                }
+                setNotifications(next)
+                setNotificationsEnabled(next)
+              }}
+              className={`relative h-6 w-11 rounded-full transition ${notifications ? 'bg-brand-600' : 'bg-line'}`}
+            >
+              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${notifications ? 'left-[22px]' : 'left-0.5'}`} />
+            </button>
+          </div>
+          <div className="flex items-center justify-between border-t border-line px-4 py-3.5">
+            <span className="flex items-center gap-2 text-sm font-medium"><Volume2 size={16} /> Notification sound</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={notificationSound}
+              onClick={() => {
+                setNotificationSound(!notificationSound)
+                setNotificationSoundEnabled(!notificationSound)
+              }}
+              className={`relative h-6 w-11 rounded-full transition ${notificationSound ? 'bg-brand-600' : 'bg-line'}`}
+            >
+              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${notificationSound ? 'left-[22px]' : 'left-0.5'}`} />
+            </button>
+          </div>
+        </section>
 
         <button onClick={() => logout()} className="btn-ghost mt-3 w-full text-red-500"><LogOut size={16} /> Sign out</button>
       </div>

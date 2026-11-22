@@ -13,7 +13,7 @@ export const POST = handler(async (req, { params }) => {
   const me = await requireUser()
   const access = await requireMember(params.cid, me.uid)
   if (access.type !== 'group') throw new HttpError(400, 'Only groups have members to add.')
-  if (access.role !== 'admin' && !access.isPublic) throw new HttpError(403, 'Only group admins can add people.')
+  if (access.role !== 'admin') throw new HttpError(403, 'Only group admins can add people.')
   const { userIds } = await parseBody(req, z.object({ userIds: z.array(z.string()).min(1).max(200) }))
   const sql = getSql()
   const now = Date.now()

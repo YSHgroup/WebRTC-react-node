@@ -11,6 +11,7 @@ import { presenceLabel } from '@/lib/chat/helpers'
 import type { Conversation, Message, UserProfile } from '@/lib/types'
 import { cn, formatBytes } from '@/lib/utils'
 import { useChat } from '@/store/chat'
+import { conversationNotificationsEnabled, setConversationNotificationsEnabled } from '@/lib/notifications'
 
 interface Props {
   conversation: Conversation
@@ -101,7 +102,7 @@ function GroupPanel({ conversation, messages }: { conversation: Conversation; me
   const users = useChat((s) => s.users)
   const presence = useChat((s) => s.presence)
   const [adding, setAdding] = useState(false)
-  const [notify, setNotify] = useState(true)
+  const [notify, setNotify] = useState(() => conversationNotificationsEnabled(conversation.id))
   const isAdmin = conversation.admins?.includes(uid)
 
   const links = messages.reduce((n, m) => n + (m.text.match(/https?:\/\/\S+/g)?.length ?? 0), 0)
@@ -112,7 +113,7 @@ function GroupPanel({ conversation, messages }: { conversation: Conversation; me
       <div className="flex flex-col items-center px-5 pt-8">
         <Avatar name={conversation.name ?? 'Group'} size={84} group={{ color: conversation.color, icon: conversation.icon }} />
         <h2 className="mt-3 text-lg font-bold">{conversation.name}</h2>
-        <p className="text-sm text-mute">{conversation.members.length} members</p>
+        <p className="text-sm text-mute">{conversation.members.length} members · {conversation.isPublic ? 'Public' : 'Private'}</p>
       </div>
       {conversation.description && (
         <section className="mx-5 mt-4 rounded-xl border border-line p-3">
@@ -143,7 +144,18 @@ function GroupPanel({ conversation, messages }: { conversation: Conversation; me
       <section className="mt-4 border-t border-line">
         <div className="flex items-center justify-between px-5 py-3.5 text-sm">
           <span className="flex items-center gap-2"><Bell size={16} className="text-mute" /> Notifications</span>
-          <button role="switch" aria-checked={notify} aria-label="Notifications" onClick={() => setNotify((v) => !v)} className={cn('relative h-6 w-11 rounded-full transition', notify ? 'bg-brand-600' : 'bg-line')}>
+          <button
+            role="switch"
+            aria-checked={notify}
+            aria-label="Notifications"
+            onClick={() => {
+              setNotify((v) => {
+                setConversationNotificationsEnabled(conversation.id, !v)
+                return !v
+              })
+            }}
+            className={cn('relative h-6 w-11 rounded-full transition', notify ? 'bg-brand-600' : 'bg-line')}
+          >
             <span className={cn('absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all', notify ? 'left-[22px]' : 'left-0.5')} />
           </button>
         </div>

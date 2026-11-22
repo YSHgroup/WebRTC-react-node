@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { dmId, listConversations, memberIds } from '@/lib/server/conversations'
+import { dmId, listConversations, mapConversation, memberIds } from '@/lib/server/conversations'
 import { getSql } from '@/lib/server/db'
 import { handler, HttpError, parseBody } from '@/lib/server/http'
 import { publish } from '@/lib/server/firebase'
@@ -9,8 +9,21 @@ import { randomUUID } from 'node:crypto'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export const GET = handler(async () => {
+export const GET = handler(async (req) => {
   const me = await requireUser()
+  const url = new URL(req.url)
+  if (url.searchParams.get('public') === 'true') {
+    const q = url.searchParams.get('q')?.trim().toLowerCase() ?? ''
+    const rows = await getSql()`
+      SELECT c.id, c.type, c.name, c.description, c.color, c.icon, c.is_public, c.updated_at, c.last_message,
+        (SELECT array_agg(x.uid ORDER BY x.joined_at) FROM conversation_members x WHERE x.cid = c.id) AS members,
+        (SELECT array_agg(x.uid) FROM conversation_members x WHERE x.cid = c.id AND x.role = 'admin') AS admins
+      FROM conversations c
+      WHERE c.type = 'group' AND c.is_public = true
+        AND (${q} = '' OR c.name ILIKE ${'%' + q + '%'} OR c.description ILIKE ${'%' + q + '%'})
+      ORDER BY c.updated_at DESC LIMIT 50`
+    return { conversations: rows.map(mapConversation) }
+  }
   return { conversations: await listConversations(me.uid) }
 })
 
@@ -20,6 +33,7 @@ const Body = z.discriminatedUnion('type', [
     type: z.literal('group'),
     name: z.string().trim().min(2, 'Enter a group name.').max(80),
     description: z.string().trim().max(200).optional(),
+    isPublic: z.boolean().default(false),
     memberIds: z.array(z.string()).max(200).optional(),
   }),
 ])
@@ -50,7 +64,7 @@ export const POST = handler(async (req) => {
   const id = randomUUID()
   await sql`
     INSERT INTO conversations (id, type, name, description, color, icon, is_public, created_by, created_at, updated_at)
-    VALUES (${id}, 'group', ${body.name}, ${body.description ?? ''}, '#7C5CFF', 'users', false, ${me.uid}, ${now}::bigint, ${now}::bigint)`
+    VALUES (${id}, 'group', ${body.name}, ${body.description ?? ''}, '#7C5CFF', 'users', ${body.isPublic}, ${me.uid}, ${now}::bigint, ${now}::bigint)`
   await sql`
     INSERT INTO conversation_members (cid, uid, role, joined_at, last_read_at)
     SELECT ${id}, u, CASE WHEN u = ${me.uid} THEN 'admin' ELSE 'member' END, ${now}::bigint, ${now}::bigint
