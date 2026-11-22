@@ -20,6 +20,8 @@ export async function updateProfile(patch: { displayName?: string; bio?: string;
 
 export async function openDm(_me: string, other: string) {
   const r = await api<{ id: string }>('/api/conversations', { body: { type: 'dm', userId: other } })
+  const { useChat } = await import('@/store/chat')
+  useChat.getState().setConversations(await fetchConversations())
   return r.id
 }
 

@@ -40,6 +40,7 @@ export const POST = handler(async (req) => {
       INSERT INTO conversation_members (cid, uid, role, joined_at, last_read_at)
       VALUES (${id}, ${me.uid}, 'member', ${now}::bigint, ${now}::bigint), (${id}, ${body.userId}, 'member', ${now}::bigint, ${now}::bigint)
       ON CONFLICT DO NOTHING`
+    await publish(await memberIds(id), { t: 'conv', cid: id })
     return { id }
   }
 
