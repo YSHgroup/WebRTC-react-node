@@ -6,29 +6,54 @@ declare global {
   }
 }
 
-// Public key; inlined at build time by Next.js. Optional: without it, bot protection relies on server rate limits.
-const KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+let siteKeyRequest: Promise<string | undefined> | null = null
 let loading: Promise<void> | null = null
 
-function load() {
-  if (!KEY) return Promise.resolve()
-  if (loading) return loading
-  loading = new Promise<void>((resolve, reject) => {
-    const s = document.createElement('script')
-    s.src = `https://www.google.com/recaptcha/api.js?render=${KEY}`
-    s.async = true
-    s.onload = () => window.grecaptcha?.ready(resolve)
-    s.onerror = () => reject(new Error('Could not load reCAPTCHA'))
-    document.head.appendChild(s)
-  })
-  return loading
+export function getCaptchaSiteKey(): Promise<string | undefined> {
+  if (!siteKeyRequest) {
+    siteKeyRequest = fetch('/api/auth/captcha', { cache: 'no-store' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Could not load reCAPTCHA configuration.')
+        const data = (await res.json()) as { siteKey?: unknown }
+        return typeof data.siteKey === 'string' && data.siteKey ? data.siteKey : undefined
+      })
+      .catch((error: unknown) => {
+        siteKeyRequest = null
+        throw error
+      })
+  }
+  return siteKeyRequest
 }
 
-export const preloadCaptcha = () => { load().catch(() => {}) }
+async function load(): Promise<string | undefined> {
+  const key = await getCaptchaSiteKey()
+  if (!key) return undefined
+  if (!loading) {
+    loading = new Promise<void>((resolve, reject) => {
+      const s = document.createElement('script')
+      s.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(key)}`
+      s.async = true
+      s.onload = () => {
+        if (!window.grecaptcha) return reject(new Error('Could not initialize reCAPTCHA'))
+        window.grecaptcha.ready(resolve)
+      }
+      s.onerror = () => reject(new Error('Could not load reCAPTCHA'))
+      document.head.appendChild(s)
+    })
+  }
+  try { await loading } catch (error) {
+    loading = null
+    throw error
+  }
+  return key
+}
+
+export const preloadCaptcha = () => { void load().catch(() => {}) }
 
 /** A one-time token for the server to verify in the same request, or undefined when reCAPTCHA is not configured. */
 export async function captchaToken(action: string): Promise<string | undefined> {
-  if (!KEY) return undefined
-  await load()
-  return window.grecaptcha!.execute(KEY, { action })
+  const key = await load()
+  if (!key) return undefined
+  if (!window.grecaptcha) throw new Error('Could not initialize reCAPTCHA')
+  return window.grecaptcha.execute(key, { action })
 }

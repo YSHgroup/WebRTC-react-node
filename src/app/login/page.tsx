@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
 import type { CountryCode } from 'libphonenumber-js'
 import { AuthShell, Divider, FormError, GoogleMark } from '@/components/auth/AuthShell'
+import { CaptchaNotice } from '@/components/auth/CaptchaNotice'
 import { IdentifierField, PasswordField, kindOf } from '@/components/auth/IdentifierFields'
 import { authError, loginAccount } from '@/lib/auth/actions'
 import { captchaToken, preloadCaptcha } from '@/lib/captcha'
@@ -58,12 +59,7 @@ function LoginForm() {
       </form>
       <Divider />
       <a href="/api/auth/google" className="btn-ghost w-full"><GoogleMark /> Continue with Google</a>
-      {process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY && (
-        <p className="mt-5 text-center text-[11px] leading-snug text-mute">
-          Protected by reCAPTCHA. Google’s <a className="underline" href="https://policies.google.com/privacy" rel="noopener noreferrer">Privacy Policy</a> and{' '}
-          <a className="underline" href="https://policies.google.com/terms" rel="noopener noreferrer">Terms</a> apply.
-        </p>
-      )}
+      <CaptchaNotice />
     </AuthShell>
   )
 }

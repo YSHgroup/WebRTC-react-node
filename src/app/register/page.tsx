@@ -5,6 +5,7 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type { CountryCode } from 'libphonenumber-js'
 import { AuthShell, Divider, FormError, GoogleMark } from '@/components/auth/AuthShell'
+import { CaptchaNotice } from '@/components/auth/CaptchaNotice'
 import { CodeStep } from '@/components/auth/CodeStep'
 import { IdentifierField, NameField, PasswordField, kindOf } from '@/components/auth/IdentifierFields'
 import { authError, registerAccount, sendEmailCode, verifyEmailCode, logout } from '@/lib/auth/actions'
@@ -92,12 +93,7 @@ function RegisterForm() {
       </form>
       <Divider />
       <a href="/api/auth/google" className="btn-ghost w-full"><GoogleMark /> Sign up with Google</a>
-      {process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY && (
-        <p className="mt-5 text-center text-[11px] leading-snug text-mute">
-          Protected by reCAPTCHA. Google’s <a className="underline" href="https://policies.google.com/privacy" rel="noopener noreferrer">Privacy Policy</a> and{' '}
-          <a className="underline" href="https://policies.google.com/terms" rel="noopener noreferrer">Terms</a> apply.
-        </p>
-      )}
+      <CaptchaNotice />
     </AuthShell>
   )
 }

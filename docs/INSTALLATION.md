@@ -90,7 +90,7 @@ If the first message works but nothing is instant, realtime is misconfigured. Th
 Phone numbers work as a sign-in name with a password. Real SMS verification is not free anywhere, so numbers are stored as *unverified*. Anyone could type someone else's number when registering, so do not treat phone numbers as proof of identity.
 
 ### Bot protection
-Create a reCAPTCHA v3 key for your production domain. Set both `RECAPTCHA_SECRET_KEY` and `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` in Vercel and redeploy; the public site key must be present **before the build** because Next.js embeds it in the browser bundle. reCAPTCHA v3 runs invisibly (it does not show a checkbox); users should see Google's badge and the privacy/terms notice on the sign-in and registration pages.
+Create a reCAPTCHA v3 key for your production domain. Set `RECAPTCHA_SECRET_KEY` and `RECAPTCHA_SITE_KEY` in Vercel. Use the plain `RECAPTCHA_SITE_KEY` name; the app serves this public key to the browser at runtime, so it does not need a `NEXT_PUBLIC_` prefix or a rebuild when changed. Keep `RECAPTCHA_SECRET_KEY` private. reCAPTCHA v3 runs invisibly (it does not show a checkbox); users should see Google's badge and the privacy/terms notice on the sign-in and registration pages.
 
 After deployment, check `/api/health`: `captcha` and `captchaSiteKey` should both be `true`. If only `captcha` is true, the server is requiring verification but the browser cannot generate a token, which causes “Could not confirm you are human.” Add the public site key, confirm its type is v3 and its allowed domains include your production hostname, then redeploy.
 
