@@ -4,7 +4,7 @@
 1. **Two sources of truth.** Logins lived in Firebase Auth, chats in Firestore, and a half-finished copy in Postgres. The Postgres chat tables and the `/api/conversations` and `/api/messages` routes were never used by the UI.
 2. **Build-time configuration.** Firebase settings were read at build time, and `client.ts` threw an error while loading if any were missing. One missing variable broke every page. Changing a value needed a rebuild.
 3. **Phone sign-in could not work on the free plan.** It needs Firebase Blaze billing. Registration and login by phone were blocked in the UI.
-4. **Email codes.** Resend's test sender delivers only to the account owner, so most users never received codes. The code path also depended on Firebase accounts existing first.
+4. **Email verification.** Firebase email/password credentials are now created before the Neon profile. Users can choose a Firebase verification link (no custom sender domain required) or a Resend code; Resend's test sender still only delivers to the account owner.
 5. **Firestore quota exhaustion.** Every ICE candidate in a call was a write, a read and a delete. Presence heartbeats updated every user document, which re-sent that document to every open client. The free quota (20k writes/day) disappears quickly.
 6. **Firestore reads of all users on every client**, including a profile photo stored as a data URL in each user document.
 7. **Deprecated database package** (`@vercel/postgres`).
@@ -20,8 +20,8 @@
 - No rate limiting. Now Postgres-backed limits on register, login, codes, uploads and messages.
 
 ## New design
-- **Neon Postgres is the only source of truth**, including credentials (scrypt hashes) and messages.
-- **Own sessions:** signed HTTP-only cookie; Google sign-in through a direct OAuth flow with PKCE.
+- **Neon Postgres is the source of truth for app profiles and messages.** Firebase Authentication stores email/password credentials and Google/phone identities.
+- **Own sessions:** signed HTTP-only cookie; Firebase ID tokens are verified server-side for email/password and Google sign-in.
 - **Firebase Realtime Database as a pipe:** per-user private inbox, presence with server-side disconnect handling, typing, call signalling. The browser logs in with a custom token containing only the user id.
 - **Graceful fallback:** if realtime is down, the app polls and tells the user.
 - **Runtime configuration:** Firebase web config comes from the server at runtime. No rebuild needed.

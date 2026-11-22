@@ -10,7 +10,8 @@ import { CodeStep } from '@/components/auth/CodeStep'
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 import { IdentifierField, NameField, PasswordField, kindOf } from '@/components/auth/IdentifierFields'
 import { PhoneCodeStep } from '@/components/auth/PhoneCodeStep'
-import { authError, loginWithFirebase, registerAccount, sendEmailVerification, verifyEmailCode, verifyPhoneAccount, logout } from '@/lib/auth/actions'
+import { authError, confirmEmailVerificationLink, loginWithFirebase, registerAccount, sendEmailVerification, verifyEmailCode, verifyPhoneAccount, logout } from '@/lib/auth/actions'
+import { createEmailPasswordIdToken, firebaseAuthError } from '@/lib/firebase-auth-client'
 import { captchaToken, preloadCaptcha } from '@/lib/captcha'
 import { useRedirectIfReady } from '@/hooks/useRedirectIfReady'
 import { useAuth } from '@/store/auth'
@@ -90,6 +91,7 @@ function RegisterForm() {
     const selectedMethod = formData.get('email-verification-method')
     const selectedVerificationMethod: VerificationMethod =
       selectedMethod === 'link' ? 'link' : 'code'
+    setVerificationMethod(selectedVerificationMethod)
     if (kind === 'unknown') return setError('Enter an email address or a phone number.')
     if (kind === 'phone') {
       const parsed = parsePhoneNumberFromString(identifier, country)
@@ -100,21 +102,35 @@ function RegisterForm() {
     }
     setBusy(true)
     try {
+      const email = identifier.trim()
+      const registrationCaptcha = await captchaToken('register')
+      const firebaseIdToken = await createEmailPasswordIdToken(email, password)
       const result = await registerAccount({
         name: name.trim(),
-        identifier: identifier.trim(),
+        identifier: email,
         country,
-        password,
+        firebaseIdToken,
         verificationMethod: selectedVerificationMethod,
-        captchaToken: await captchaToken('register'),
+        captchaToken: registrationCaptcha,
       })
       const user = result.user
       if (user.needsVerification) {
-        setError(result.verificationError ?? null)
-        setSentMethod(result.verificationError ? null : selectedVerificationMethod)
         setStep('verify-email')
+        setSentMethod(null)
+        if (result.verificationError) {
+          setError(result.verificationError)
+        } else if (selectedVerificationMethod === 'code') {
+          setSentMethod('code')
+        } else {
+          try {
+            await sendEmailVerification('link')
+            setSentMethod('link')
+          } catch (sendError) {
+            setError(firebaseAuthError(sendError))
+          }
+        }
       } else router.replace('/chat')
-    } catch (err) { setError(authError(err)) } finally { setBusy(false) }
+    } catch (err) { setError(firebaseAuthError(err) || authError(err)) } finally { setBusy(false) }
   }
 
   const requestVerification = async (method: VerificationMethod) => {
@@ -125,7 +141,7 @@ function RegisterForm() {
       setSentMethod(method)
       toast.success(method === 'code' ? 'A new code is on its way.' : 'A verification link is on its way.')
     } catch (err) {
-      const message = authError(err)
+      const message = method === 'link' ? firebaseAuthError(err) : authError(err)
       setError(message)
       throw new Error(message)
     } finally {
@@ -198,9 +214,29 @@ function RegisterForm() {
             <>
               <p role="status" className="text-center text-sm text-mute">
                 We sent a verification link to <span className="font-medium text-ink">{me.email}</span>.
-                Open it within 10 minutes to verify your account. Check your spam folder if it doesn’t arrive.
+                Open it to verify your account. Check your spam folder if it doesn’t arrive.
               </p>
               <FormError message={error} />
+              <button
+                type="button"
+                className="btn-primary w-full"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true)
+                  setError(null)
+                  try {
+                    await confirmEmailVerificationLink()
+                    toast.success('Email verified.')
+                    router.replace('/chat')
+                  } catch (verifyError) {
+                    setError(firebaseAuthError(verifyError))
+                  } finally {
+                    setBusy(false)
+                  }
+                }}
+              >
+                {busy ? 'Checking…' : 'I’ve verified my email'}
+              </button>
               <button type="button" className="btn-primary w-full" disabled={busy} onClick={() => { void requestVerification('link').catch(() => {}) }}>
                 {busy ? 'Sending…' : 'Resend verification link'}
               </button>

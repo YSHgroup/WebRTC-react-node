@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { consumeCode } from '@/lib/server/codes'
 import { getSql } from '@/lib/server/db'
 import { clientIp, handler, HttpError, parseBody } from '@/lib/server/http'
+import { updateFirebaseEmailCredentials } from '@/lib/server/firebase'
 import { hashPassword } from '@/lib/server/password'
 import { rateLimit } from '@/lib/server/ratelimit'
 import { startSession } from '@/lib/server/session'
@@ -22,6 +23,7 @@ export const POST = handler(async (req) => {
   const row = await findByIdentifier({ email: body.email })
   if (!row) throw new HttpError(400, 'Incorrect code. Try again.')
   await consumeCode(row.id, 'reset_password', body.code)
+  if (row.firebase_uid) await updateFirebaseEmailCredentials(row.firebase_uid, body.password)
   // Receiving the code proves the person controls this mailbox, so the address counts as verified.
   const updated = await getSql()`
     UPDATE users SET password_hash = ${await hashPassword(body.password)}, email_verified = true WHERE id = ${row.id} RETURNING *`

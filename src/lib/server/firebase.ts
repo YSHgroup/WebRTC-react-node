@@ -1,11 +1,12 @@
 import { cert, getApp, getApps, initializeApp, type App } from 'firebase-admin/app'
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth'
 import { getDatabase, ServerValue } from 'firebase-admin/database'
+import { getSql } from './db'
 import { HttpError } from './http'
 
 /**
- * Firebase Auth verifies Google and phone sign-in tokens. Neon remains the application user store;
- * Realtime Database is used only as a transport for live events.
+ * Firebase Auth stores sign-in credentials and verifies Google, email/password, and phone identities.
+ * Neon stores Huddle profiles; Realtime Database is only the live-event transport.
  */
 
 interface ServiceAccount { projectId: string; clientEmail: string; privateKey: string }
@@ -72,6 +73,32 @@ export function publicWebConfig() {
 }
 
 export const mintRealtimeToken = (uid: string) => getAuth(adminApp()).createCustomToken(uid)
+
+export const markFirebaseEmailVerified = (uid: string) =>
+  getAuth(adminApp()).updateUser(uid, { emailVerified: true })
+
+export async function syncVerifiedFirebaseEmail(uid: string): Promise<string | null> {
+  let firebaseUser
+  try {
+    firebaseUser = await getAuth(adminApp()).getUser(uid)
+  } catch (error) {
+    if ((error as { code?: string }).code === 'auth/user-not-found') {
+      throw new HttpError(400, 'This Firebase verification link is invalid or expired.')
+    }
+    throw error
+  }
+  if (!firebaseUser.emailVerified || !firebaseUser.email) {
+    throw new HttpError(400, 'Firebase has not confirmed this email yet. Open the verification link and try again.')
+  }
+  const rows = await getSql()`UPDATE users SET email_verified = true
+    WHERE firebase_uid = ${uid} AND lower(email) = ${firebaseUser.email.toLowerCase()}
+    RETURNING id`
+  if (!rows[0]) throw new HttpError(404, 'No Huddle account is linked to this Firebase account.')
+  return rows[0].id as string
+}
+
+export const updateFirebaseEmailCredentials = (uid: string, password: string) =>
+  getAuth(adminApp()).updateUser(uid, { password, emailVerified: true })
 
 export async function verifyFirebaseIdToken(token: string): Promise<DecodedIdToken> {
   try {

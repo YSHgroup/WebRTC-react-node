@@ -11,7 +11,7 @@ Huddle is a browser-based team messaging app for private conversations and group
 - **Share photos and files:** send attachments in chat and view them from the conversation.
 - **See what’s happening:** realtime message delivery, online presence, typing indicators, and call signaling, with polling as a fallback.
 - **Choose how to sign in:** register with an email address and password, register with a phone number and password after SMS verification, or sign in with Google.
-- **Verify accounts:** email/password accounts use a six-digit email code; Google email addresses are accepted when Google reports them as verified.
+- **Verify accounts:** choose a Firebase verification link or a six-digit email code for email/password signup; Google email addresses are accepted when Google reports them as verified.
 
 ## How Huddle works
 
@@ -21,12 +21,12 @@ Huddle uses separate services for durable app data, identity checks, and realtim
 | --- | --- |
 | **Next.js on Vercel** | Web application and API |
 | **Neon Postgres** | User profiles, account records, conversations, messages, attachments, and verification codes |
-| **Firebase Authentication** | Google sign-in and SMS phone verification; verified identities are synced to Neon |
+| **Firebase Authentication** | Email/password credentials, Google sign-in, and SMS phone verification; identities are synced to Neon |
 | **Firebase Realtime Database** | Lightweight message notifications, presence, typing, and call signaling—not the message archive |
 | **WebRTC** | Peer-to-peer audio and video calls |
 | **Resend** | Email verification and password-reset codes |
 
-The database remains the source of truth for Huddle accounts and chat data. Firebase Authentication verifies Google and phone identities; it does not replace Neon as the app’s user directory or chat database.
+Neon stores Huddle profiles and chat data. Firebase Authentication stores email/password credentials and Google/phone identities, while account profiles and verification state are synchronized to Neon.
 
 ## Run locally
 
@@ -35,7 +35,7 @@ The database remains the source of truth for Huddle accounts and chat data. Fire
 - Node.js 20 or newer
 - A Neon Postgres database
 - A Firebase project with Authentication enabled; Realtime Database is needed for live delivery
-- A Resend API key to receive email verification and password-reset codes outside local development
+- A Resend API key to receive email verification and password-reset codes outside local development (Firebase sends verification links)
 
 ### Start the app
 
@@ -56,7 +56,7 @@ The database remains the source of truth for Huddle accounts and chat data. Fire
 
 4. Open [http://localhost:3000](http://localhost:3000).
 
-In development, verification emails are printed in the terminal if Resend is not configured. Firebase sign-in still requires a configured Firebase project and enabled providers.
+In development, verification and reset codes are printed in the terminal if Resend is not configured. Firebase verification links require a configured Firebase project and the Email/Password provider.
 
 ## Deploy to Vercel
 
@@ -96,6 +96,6 @@ docs/INSTALLATION.md Full setup, deployment, and troubleshooting guide
 ## Security and deployment notes
 
 - Keep `AUTH_SECRET`, `RECAPTCHA_SECRET_KEY`, Resend credentials, and Firebase service-account credentials in server-side environment variables. `RECAPTCHA_SITE_KEY` is a public key; the app serves it to the browser at runtime. Never commit secrets.
-- Add each deployed hostname to Firebase Authentication’s authorized domains, and enable the Google and Phone sign-in providers.
-- Email verification requires `RESEND_API_KEY`; SMS verification is subject to Firebase phone-auth quotas, region availability, and billing requirements.
+- Add each deployed hostname to Firebase Authentication’s authorized domains, and enable Email/Password, Google, and Phone providers.
+- Firebase sends email verification links. Verification and password-reset codes require `RESEND_API_KEY`; SMS verification is subject to Firebase phone-auth quotas, region availability, and billing requirements.
 - Huddle uses signed HTTP-only session cookies and rate limits sensitive account actions. Review the [installation guide](docs/INSTALLATION.md) for production configuration and the [audit notes](docs/AUDIT.md) for known limitations.

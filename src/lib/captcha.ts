@@ -14,8 +14,10 @@ export function getCaptchaSiteKey(): Promise<string | undefined> {
     siteKeyRequest = fetch('/api/auth/captcha', { cache: 'no-store' })
       .then(async (res) => {
         if (!res.ok) throw new Error('Could not load reCAPTCHA configuration.')
-        const data = (await res.json()) as { siteKey?: unknown }
-        return typeof data.siteKey === 'string' && data.siteKey ? data.siteKey : undefined
+        const data = (await res.json()) as { siteKey?: unknown; required?: unknown }
+        const siteKey = typeof data.siteKey === 'string' && data.siteKey ? data.siteKey : undefined
+        if (!siteKey && data.required === true) throw new Error('reCAPTCHA is required but its site key is not configured.')
+        return siteKey
       })
       .catch((error: unknown) => {
         siteKeyRequest = null

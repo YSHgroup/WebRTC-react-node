@@ -8,16 +8,16 @@ Free stack: **Next.js on Vercel** + **Neon Postgres** (application data and acco
 |---|---|---|
 | Next.js on Vercel | Pages and API | — |
 | Neon Postgres | Users, password hashes, conversations, messages, files | **Here, only here** |
-| Firebase Authentication | Google sign-in and SMS phone verification; verified identities are synced to Neon | Google identity and verified phone |
+| Firebase Authentication | Email/password accounts, Google sign-in, and SMS phone verification; identities are synced to Neon | Sign-in identities and verification status |
 | Firebase Realtime DB | Delivers new messages, typing, online status and call signals instantly | No messages or contact details |
 
-Email/password accounts and the app's user directory are stored in Neon. Firebase Auth handles Google sign-in and phone-number SMS verification.
+Account profiles and the app's user directory are stored in Neon. Firebase Auth stores email/password credentials, handles Google sign-in and phone-number SMS verification, and sends email verification links.
 
 ## 1. What you need
 
 - Node.js 20 or newer and Git
 - Free accounts: GitHub, Vercel, Firebase (Google account)
-- Optional: Resend (email verification), Cloudflare (TURN relay for calls)
+- Optional: Resend (email codes and password-reset codes), Cloudflare (TURN relay for calls)
 
 ## 2. Put the code in your repo
 
@@ -38,7 +38,7 @@ Email/password accounts and the app's user directory are stored in Neon. Firebas
 2. **Build → Realtime Database → Create database.** Choose a region near your users. Start in *locked mode*.
 3. Open the **Rules** tab, replace everything with the contents of `database.rules.json`, and **Publish**.
 4. Copy the database URL shown at the top of the **Data** tab, for example `https://my-app-default-rtdb.europe-west1.firebasedatabase.app`. This is `FIREBASE_DATABASE_URL`.
-5. **Build → Authentication → Get started → Sign-in method.** Enable **Google** and **Phone** providers. Add your production hostname (for example `YOUR-APP.vercel.app`) under **Settings → Authorized domains**. Phone Authentication uses Firebase's SMS service and its reCAPTCHA challenge.
+5. **Build → Authentication → Get started → Sign-in method.** Enable **Email/Password**, **Google**, and **Phone** providers. Add your production hostname (for example `YOUR-APP.vercel.app`) under **Settings → Authorized domains**. Phone Authentication uses Firebase's SMS service and its reCAPTCHA challenge.
 6. **Project settings → General →** copy the **Web API Key** (`FIREBASE_API_KEY`) and the **App ID** for your Web app (`FIREBASE_APP_ID`). If there is no Web app, register one in project settings.
 7. **Project settings → Service accounts → Generate new private key.** Open the downloaded JSON file, copy its whole content, and use it as `FIREBASE_SERVICE_ACCOUNT` (one line is fine; Vercel accepts pasted JSON). The service-account `project_id` is detected automatically.
 
@@ -80,14 +80,14 @@ If the first message works but nothing is instant, realtime is misconfigured. Th
 ## 8. Email, bot protection, and calls
 
 ### Firebase sign-in and phone verification
-Enable Google and Phone in **Firebase Authentication → Sign-in method**, and add each deployment hostname under **Authorized domains**. Set `FIREBASE_SERVICE_ACCOUNT`, `FIREBASE_API_KEY`, and `FIREBASE_APP_ID` in Vercel. Google sign-in uses Firebase Auth; the server verifies its ID token and stores the verified Google email and Firebase user ID in Neon. No separate Google OAuth client secret is needed.
+Enable Email/Password, Google, and Phone in **Firebase Authentication → Sign-in method**, and add each deployment hostname under **Authorized domains**. Set `FIREBASE_SERVICE_ACCOUNT`, `FIREBASE_API_KEY`, and `FIREBASE_APP_ID` in Vercel. Email/password and Google identities are stored in Firebase Auth and synced with the Neon user record. Google accounts use Google's verified-email claim; password accounts can verify by a Firebase email link or a Resend code. No separate Google OAuth client secret is needed.
 
 Phone sign-up and verification use Firebase Phone Authentication. A user must enter the SMS code before a phone account is created in Neon. SMS quotas, billing requirements, and availability depend on Firebase and the user's region; test with Firebase's configured test phone numbers before launch.
 
-### Emails: verification and password reset
+### Emails: verification links, codes, and password reset
 1. Create a Resend account and an API key; set `RESEND_API_KEY`.
-2. The default sender `onboarding@resend.dev` only delivers to your own Resend account address. Verify a domain in Resend, then set `MAIL_FROM` to an address on it.
-3. Email verification is enabled by default. During email/password registration, users can choose a 6-digit code or a one-time verification link; both expire after 10 minutes, and accounts remain restricted until verified. Unverified users can switch methods and request another email. Google accounts use Google's verified-email claim instead.
+2. Resend sends verification and reset codes. Its default sender `onboarding@resend.dev` only delivers to your own Resend account address; verify a domain and set `MAIL_FROM` to send codes to other recipients. Firebase sends verification links using its configured Auth email template.
+3. Email verification is enabled by default. During email/password registration, users can choose a 6-digit code sent through Resend or a verification link sent by Firebase. Codes expire after 10 minutes; Firebase controls link expiration. Accounts remain restricted until verified. Unverified users can switch methods and request another email. Google accounts use Google's verified-email claim instead.
 
 ### Bot protection
 Create a reCAPTCHA v3 key for your production domain. Set `RECAPTCHA_SECRET_KEY` and `RECAPTCHA_SITE_KEY` in Vercel. Use the plain `RECAPTCHA_SITE_KEY` name; the app serves this public key to the browser at runtime, so it does not need a `NEXT_PUBLIC_` prefix or a rebuild when changed. Keep `RECAPTCHA_SECRET_KEY` private. reCAPTCHA v3 runs invisibly (it does not show a checkbox); users should see Google's badge and the privacy/terms notice on the sign-in and registration pages.
@@ -131,12 +131,13 @@ Most calls connect with the built-in STUN servers. Offices, mobile networks and 
 | Cannot sign in, "AUTH_SECRET" error | Secret missing or shorter than 32 characters. |
 | `"realtime": false` | Missing service account, database URL or Web API key. Variables changes need a redeploy. |
 | `"firebaseAuth": false` | Check `FIREBASE_SERVICE_ACCOUNT`, `FIREBASE_API_KEY`, and `FIREBASE_APP_ID`; all must come from the same Firebase project. |
-| Firebase says `auth/operation-not-allowed` | Enable Google and Phone under Firebase Authentication → Sign-in method. |
+| Firebase says `auth/operation-not-allowed` | Enable Email/Password, Google, and Phone under Firebase Authentication → Sign-in method. |
 | Firebase says `auth/unauthorized-domain` | Add the exact Vercel production hostname to Firebase Authentication → Settings → Authorized domains. |
 | Phone verification SMS is not delivered | Check the Phone provider, allowed domain, SMS quota/region, and Firebase billing; test with a Firebase test phone number. |
 | "Realtime is not configured" or sign-in with token fails | Check the service account and database URL, and ensure the service account belongs to the Firebase project hosting Realtime Database. |
 | Messages only appear after a few seconds | Realtime is down and the app is polling. Check the rules were published and the URL has no trailing path. |
-| Registration email never arrives | Resend test sender only reaches your own address. Verify a domain. |
+| Firebase verification link never arrives | Confirm Email/Password is enabled, your production hostname is in Authorized domains, and the Firebase email template is enabled. |
+| Resend verification code never arrives | Resend's test sender only reaches your own Resend account email. Verify a sending domain and set `MAIL_FROM` to use codes for other recipients. |
 | Call stays on "Connecting…" | Network needs TURN (section 8). Also check the browser has camera and microphone permission. |
 | "X is offline" when calling | Calls ring only people who are online. |
 

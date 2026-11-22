@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto'
+import { createHmac, randomInt, randomUUID, timingSafeEqual } from 'node:crypto'
 import { getSql } from './db'
 import { HttpError } from './http'
 
@@ -16,12 +16,6 @@ export async function issueCode(uid: string, purpose: CodePurpose): Promise<stri
   const code = String(randomInt(0, 1_000_000)).padStart(6, '0')
   await storeSecret(uid, purpose, code)
   return code
-}
-
-export async function issueEmailLinkToken(uid: string): Promise<string> {
-  const token = randomBytes(32).toString('base64url')
-  await storeSecret(uid, 'verify_email', token)
-  return token
 }
 
 async function storeSecret(uid: string, purpose: CodePurpose, secret: string) {
@@ -54,29 +48,4 @@ export async function consumeCode(uid: string, purpose: CodePurpose, code: strin
     throw new HttpError(400, 'Incorrect code. Try again.')
   }
   await sql`DELETE FROM auth_codes WHERE uid = ${uid} AND purpose = ${purpose}`
-}
-
-export async function consumeEmailLinkToken(uid: string, token: string) {
-  const sql = getSql()
-  const hash = hashSecret(uid, 'verify_email', token)
-  const rows = await sql`
-    SELECT id, code_hash, expires_at FROM auth_codes
-    WHERE uid = ${uid} AND purpose = 'verify_email'
-    ORDER BY created_at DESC LIMIT 1`
-  const row = rows[0]
-  if (!row) throw new HttpError(400, 'This verification link is invalid or has already been used. Request a new one.')
-  if (Date.now() > Number(row.expires_at)) {
-    await sql`DELETE FROM auth_codes WHERE id = ${row.id}`
-    throw new HttpError(400, 'This verification link has expired. Request a new one.')
-  }
-  const given = Buffer.from(hash, 'hex')
-  const stored = Buffer.from(row.code_hash as string, 'hex')
-  if (given.length !== stored.length || !timingSafeEqual(given, stored)) {
-    throw new HttpError(400, 'This verification link is invalid or has already been used. Request a new one.')
-  }
-  const consumed = await sql`
-    DELETE FROM auth_codes
-    WHERE id = ${row.id} AND code_hash = ${hash} AND expires_at >= ${Date.now()}::bigint
-    RETURNING id`
-  if (!consumed.length) throw new HttpError(400, 'This verification link is invalid or has already been used. Request a new one.')
 }

@@ -38,7 +38,7 @@ export function toMe(r: Row): Me {
     createdAt: Number(r.created_at),
     emailVerified: !!r.email_verified,
     phoneVerified: !!r.phone_verified,
-    hasPassword: !!r.password_hash,
+    hasPassword: !!r.password_hash || (!!r.email && !!r.firebase_uid && !r.firebase_google),
     hasGoogle,
     needsVerification: (emailVerificationRequired() && !!r.email && !r.email_verified)
       || (!!r.phone && !r.phone_verified),

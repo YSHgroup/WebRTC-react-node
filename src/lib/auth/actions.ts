@@ -1,4 +1,5 @@
 import { api, ApiError } from '@/lib/api'
+import { refreshFirebaseEmailVerificationUid, sendFirebaseVerificationLink, signOutFirebase } from '@/lib/firebase-auth-client'
 import type { Me } from '@/lib/types'
 import { useAuth } from '@/store/auth'
 
@@ -13,7 +14,7 @@ export async function registerAccount(input: {
   name: string
   identifier: string
   country: string
-  password: string
+  password?: string
   verificationMethod?: 'code' | 'link'
   captchaToken?: string
   firebaseIdToken?: string
@@ -29,16 +30,28 @@ export const loginAccount = (input: { identifier: string; country: string; passw
 export const loginWithFirebase = (idToken: string) =>
   api<Result>('/api/auth/firebase', { body: { idToken } }).then(apply)
 
-export const sendEmailVerification = (method: 'code' | 'link') =>
-  api('/api/auth/email/send', { method: 'POST', body: { method } })
+export const loginEmailWithFirebase = (idToken: string, captchaToken?: string) =>
+  api<Result>('/api/auth/firebase', { body: { idToken, captchaToken } }).then(apply)
+
+export const sendEmailVerification = (method: 'code' | 'link') => {
+  if (method === 'link') return sendFirebaseVerificationLink()
+  return api('/api/auth/email/send', { method: 'POST', body: { method: 'code' } })
+}
 
 export const verifyEmailCode = async (code: string) => {
   const r = await api<Result>('/api/auth/email/verify', { body: { code } })
   apply(r)
 }
 
-export const verifyEmailLink = (uid: string, token: string) =>
-  api('/api/auth/email/verify-link', { body: { uid, token } })
+export const verifyEmailLink = (uid: string) =>
+  api('/api/auth/email/verify-link', { body: { uid } })
+
+export async function confirmEmailVerificationLink() {
+  const uid = await refreshFirebaseEmailVerificationUid()
+  await api('/api/auth/email/verify-link', { body: { uid } })
+  const result = await api<Result>('/api/auth/me')
+  apply(result)
+}
 
 export async function verifyPhoneAccount(idToken: string) {
   const r = await api<Result>('/api/auth/phone/verify', { body: { idToken } })
@@ -53,5 +66,6 @@ export const resetPassword = (input: { email: string; code: string; password: st
 /** Full page load afterwards, so every store, listener and realtime connection is discarded. */
 export async function logout() {
   try { await api('/api/auth/logout', { method: 'POST', body: {} }) } catch { /* cookie may already be gone */ }
+  try { await signOutFirebase() } catch { /* Firebase may not be configured on this device */ }
   window.location.assign('/login')
 }
