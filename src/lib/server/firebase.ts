@@ -105,15 +105,12 @@ export async function verifyFirebaseIdToken(token: string): Promise<DecodedIdTok
     return await getAuth(adminApp()).verifyIdToken(token)
   } catch (error) {
     const code = (error as { code?: unknown }).code
-    if (typeof code === 'string' && [
-      'auth/argument-error',
-      'auth/id-token-expired',
-      'auth/id-token-revoked',
-      'auth/invalid-id-token',
-      'auth/user-disabled',
-      'auth/user-not-found',
-    ].includes(code)) {
+    if (typeof code === 'string' && code.startsWith('auth/')) {
       throw new HttpError(401, 'Firebase sign-in expired or is invalid. Please try again.')
+    }
+    const message = error instanceof Error ? error.message : String(error)
+    if (/private.?key|service.?account|credential|pem/i.test(message)) {
+      throw new HttpError(503, 'Firebase Admin is not configured correctly on the server. Please contact support.')
     }
     throw error
   }

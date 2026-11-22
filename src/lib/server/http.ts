@@ -38,7 +38,7 @@ export function handler(fn: (req: Request, ctx: Ctx) => Promise<unknown>) {
         return NextResponse.json({ error: error.message, code: error.code }, { status: error.status, headers: { 'Cache-Control': 'no-store' } })
       }
       console.error(`[api] ${req.method} ${new URL(req.url).pathname}`, error)
-      const message = error instanceof Error && /DATABASE_URL|AUTH_SECRET|Firebase/.test(error.message)
+      const message = error instanceof Error && /DATABASE_URL|AUTH_SECRET|Firebase|Firebase Admin/.test(error.message)
         ? error.message
         : 'Something went wrong on the server. Please try again.'
       return NextResponse.json({ error: message }, { status: 500, headers: { 'Cache-Control': 'no-store' } })
