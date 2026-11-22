@@ -20,8 +20,14 @@ export const metadata: Metadata = {
     type: 'website', siteName: 'Huddle', url: '/', locale: 'en_US',
     title: 'Huddle — private chats, team groups and free video calls',
     description: 'Chat with your team, jump on a video call, and keep everything in one calm place.',
+    images: [{ url: '/huddle.jpg', alt: 'Huddle team messaging and video calling' }],
   },
-  twitter: { card: 'summary_large_image', title: 'Huddle', description: 'Free team chat with built-in video calls.' },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Huddle',
+    description: 'Free team chat with built-in video calls.',
+    images: [{ url: '/huddle.jpg', alt: 'Huddle team messaging and video calling' }],
+  },
   robots: { index: true, follow: true },
   icons: { icon: '/icon.svg' },
 }

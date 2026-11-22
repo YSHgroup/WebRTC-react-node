@@ -29,6 +29,7 @@ export const GET = handler(async () => {
     emailDelivery: !!process.env.RESEND_API_KEY,
     emailVerificationRequired: process.env.REQUIRE_EMAIL_VERIFICATION === 'true',
     captcha: !!process.env.RECAPTCHA_SECRET_KEY,
+    captchaSiteKey: !!process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY,
     turn: !!(process.env.TURN_URLS || process.env.CLOUDFLARE_TURN_KEY_ID),
   }
 })

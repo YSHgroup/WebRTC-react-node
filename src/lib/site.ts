@@ -1,4 +1,8 @@
-/** Canonical site URL. SITE_URL wins; on Vercel the production domain is detected automatically. */
+/** Canonical site URL. Set SITE_URL to the production domain for stable canonical metadata. */
 export const SITE_URL =
   process.env.SITE_URL?.replace(/\/$/, '') ||
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000')
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:3000')
