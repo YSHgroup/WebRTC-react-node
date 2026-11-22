@@ -7,6 +7,7 @@ import { Logo } from '@/components/ui/Logo'
 import { logout } from '@/lib/auth/actions'
 import { cn } from '@/lib/utils'
 import { useChat } from '@/store/chat'
+import { ConnectionBadge } from './ConnectionBadge'
 
 export const NAV = [
   { href: '/chat', label: 'Chats', icon: MessageCircle },
@@ -67,6 +68,7 @@ export function Rail() {
         )
       })}
       <div className="mt-auto flex flex-col items-center gap-1">
+        <ConnectionBadge />
         <ThemeToggle />
         <button
           aria-label="Sign out"
@@ -103,6 +105,7 @@ export function BottomNav() {
           </Link>
         )
       })}
+      <ConnectionBadge mobile />
     </nav>
   )
 }

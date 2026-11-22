@@ -12,10 +12,11 @@ interface ChatState {
   ready: boolean
   /** true while the realtime connection is up; false means we are polling */
   live: boolean
+  liveError: string | null
   setUsers: (list: UserProfile[]) => void
   setConversations: (list: Conversation[]) => void
   setPresence: (online: Record<string, boolean>, lastSeen: Record<string, number>) => void
-  setLive: (live: boolean) => void
+  setLive: (live: boolean, error?: string) => void
   setActive: (cid: string | null) => void
   mergeMessages: (cid: string, msgs: Message[]) => void
   /** Applies one incoming message to the conversation list (preview, order, unread) and, if loaded, its history. */
@@ -25,7 +26,7 @@ interface ChatState {
 }
 
 const initial = {
-  users: {}, conversations: [], presence: {}, unread: {}, activeCid: null, messages: {}, typing: {}, ready: false, live: false,
+  users: {}, conversations: [], presence: {}, unread: {}, activeCid: null, messages: {}, typing: {}, ready: false, live: false, liveError: null,
 }
 
 const previewOf = (m: Message) => m.text.trim() || (m.attachment ? (m.attachment.kind === 'image' ? '📷 Photo' : `📎 ${m.attachment.name}`) : '')
@@ -54,7 +55,10 @@ export const useChat = create<ChatState>((set, get) => ({
       return { presence, users }
     }),
 
-  setLive: (live) => set({ live }),
+  setLive: (live, liveError) => set({
+    live,
+    liveError: live ? null : liveError ?? 'Realtime connection is unavailable. Retrying automatically.',
+  }),
 
   setActive: (cid) => set((s) => ({ activeCid: cid, unread: cid ? { ...s.unread, [cid]: 0 } : s.unread })),
 

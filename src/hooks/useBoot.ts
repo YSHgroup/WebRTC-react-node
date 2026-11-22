@@ -101,8 +101,7 @@ export function useBoot() {
           if (cancelled) return
           const detail = e instanceof Error ? e.message : String(e)
           console.error('Realtime connection failed; retrying:', e)
-          useChat.getState().setLive(false)
-          toast.message(`Live updates are off; retrying in 5 seconds. Calls require realtime. ${detail}`, { id: 'rt-off' })
+          useChat.getState().setLive(false, detail)
           reconnectTimer = setTimeout(() => { void connect() }, 5000)
         }
       }
